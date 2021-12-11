@@ -1,11 +1,10 @@
 #[macro_use]
-pub mod helpers;
-
-pub mod unzip;
+mod helpers;
+mod signal;
+mod unzip;
 
 use std::io;
 use std::time::Duration;
-
 
 fn main() {
     // Open serial connection on /dev/ttyS2, baud rate is chosen for <1ms latency
@@ -34,11 +33,13 @@ fn main() {
 }
 
 /// Process the serial buffer and parse commands therein
+///
 /// Commands:
-///  - 'u in_zip_path' - Unzip the BYOND zip file at the given path
-///  - 'r process_name args env_vars' - Run the specified process with the given arguments and environment variables
-///  - 's signal pid' - Send the given signal to the given pid
-///  - 'q' - Quit
+/// - `u in_zip_path` - Unzip the BYOND zip file at the given path
+/// - `r process_name args env_vars` - Run the specified process with the given arguments and environment variables
+/// - `s pid signal` - Send the given signal to the given pid
+/// - `p` - Poll for data, sends back (p pid data\n)* and/or (o pid stdout\n)* with OK for end of data
+/// - `q` - Quit
 fn process_cmds(serial_buf: &[u8]) {
     // Tokenize and parse the command
     let cmd = String::from_utf8_lossy(serial_buf);
@@ -46,7 +47,8 @@ fn process_cmds(serial_buf: &[u8]) {
     match cmd_tokens.as_slice() {
         ["u", in_zip_path] => unzip::unzip(in_zip_path).expect("Unzip failed"),
         ["r", process_name, args, env_vars] => unimplemented!(),
-        ["s", signal, pid] => unimplemented!(),
+        ["s", pid, signal] => signal::send_signal(pid, signal).expect("Failed to send signal"),
+        ["p", pid] => unimplemented!(),
         ["q"] => unimplemented!(),
         _ => eprintln!("Unknown command: {}", cmd),
     }
