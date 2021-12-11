@@ -4,7 +4,7 @@ pub mod helpers;
 pub mod unzip;
 
 use argh::FromArgs;
-use std::io::{self, Write};
+use std::io;
 use std::time::Duration;
 
 #[derive(FromArgs)]
@@ -30,7 +30,7 @@ fn main() {
             debug!("Receiving data on {}:", &port_name);
             loop {
                 match port.read(serial_buf.as_mut_slice()) {
-                    Ok(t) => io::stdout().write_all(&serial_buf[..t]).unwrap(),
+                    Ok(n) => process_cmds(&serial_buf[..n]),
                     Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (), // Ignore timeouts
                     Err(e) => eprintln!("{:?}", e),
                 }
@@ -41,5 +41,28 @@ fn main() {
             eprintln!("Failed to open \"{}\". Error: {}", port_name, e);
             std::process::exit(1);
         }
+    }
+}
+
+/// Process the serial buffer and parse commands therein
+/// Commands:
+///  - 'u in_zip_path' - Unzip the BYOND zip file at the given path
+///  - 'r process_name args env_vars' - Run the specified process with the given arguments and environment variables
+///  - 's signal pid' - Send the given signal to the given pid
+///  - 'g file_data result_loc' - Grab the given file data and store it to be send to the given file path
+///  - 'w result_loc' - Write the data associated with the given file path that we stored earlier
+///  - 'q' - Quit
+fn process_cmds(serial_buf: &[u8]) {
+    // Tokenize and parse the command
+    let cmd = String::from_utf8_lossy(serial_buf);
+    let cmd_tokens: Vec<&str> = cmd.split_whitespace().collect();
+    match cmd_tokens.as_slice() {
+        ["u", in_zip_path] => unzip::unzip(in_zip_path).expect("Unzip failed"),
+        ["r", process_name, args, env_vars] => unimplemented!(),
+        ["s", signal, pid] => unimplemented!(),
+        ["g", file_data, result_loc] => unimplemented!(),
+        ["w", result_loc] => unimplemented!(),
+        ["q"] => unimplemented!(),
+        _ => eprintln!("Unknown command: {}", cmd),
     }
 }
