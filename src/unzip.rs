@@ -11,15 +11,14 @@ pub fn unzip(path: &str) -> Result<(), &str> {
 
     let mut archive = zip::ZipArchive::new(file).unwrap();
 
-    let file_name = path_proper.file_stem().unwrap().to_str().unwrap();
-    let re = regex::Regex::new(r"(\d+)\.(\d+)_byond").unwrap();
-
-    let major = re.captures(file_name).unwrap().get(1).unwrap().as_str();
-    let minor = re.captures(file_name).unwrap().get(2).unwrap().as_str();
-
     if archive.is_empty() {
         return Err("Empty BYOND archive");
     }
+
+    let file_name = path_proper.file_stem().unwrap().to_str().unwrap(); // 514.1571_byond
+    let major = &file_name[0..3]; // 514
+    let minor = &file_name[4..8]; // 1571
+
     let tmp_path = format!("/tmp/{}/{}", major, minor);
     fs::create_dir_all(&tmp_path)
         .unwrap_or_else(|_| panic!("Couldn't create BYOND dir: {}", tmp_path));
