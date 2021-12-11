@@ -117,6 +117,7 @@ name = "dm-playground_controller"
 version = "0.1.0"
 dependencies = [
  "argh",
+ "regex",
  "serialport",
  "zip",
 ]

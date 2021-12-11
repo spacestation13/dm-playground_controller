@@ -1,16 +1,28 @@
-//! Handles unzipping functionality for sending files around
+//! Handles unzipping functionality for BYOND installation zips
 
-use std::fs;
-use std::io;
+use std::{fs, io, os, path};
 
-// TODO: extracts it to a uniqe folder in /tmp
-///  Takes a zip file from a given [path], extracts it to a unique folder in /tmp
-/// 
+///  Takes a byond install zip file from a given [path], extracts it to /tmp/major/minor
+///
 ///  Returns: Ok() if the unzip was successful, otherwise an Err()
-fn unzip(path: &str) -> Result<(), ()> {
-    let file = fs::File::open(&path).unwrap();
+fn unzip(path: &str) -> Result<(), &str> {
+    let path_proper = path::Path::new(&path);
+    let file = fs::File::open(path_proper).unwrap();
 
     let mut archive = zip::ZipArchive::new(file).unwrap();
+
+    let file_name = path_proper.file_stem().unwrap().to_str().unwrap();
+    let re = regex::Regex::new(r"(\d+)\.(\d+)_byond").unwrap();
+
+    let major = re.captures(file_name).unwrap().get(1).unwrap().as_str();
+    let minor = re.captures(file_name).unwrap().get(2).unwrap().as_str();
+
+    if archive.is_empty() {
+        return Err("Empty BYOND archive");
+    }
+    let tmp_path = format!("/tmp/{}/{}", major, minor);
+    fs::create_dir_all(&tmp_path)
+        .unwrap_or_else(|_| panic!("Couldn't create BYOND dir: {}", tmp_path));
 
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).unwrap();
@@ -39,7 +51,7 @@ fn unzip(path: &str) -> Result<(), ()> {
         // If nix, fix permissions of extracted file path
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionsExt;
+            use os::unix::fs::PermissionsExt;
 
             if let Some(mode) = file.unix_mode() {
                 if let Err(e) = fs::set_permissions(&outpath, fs::Permissions::from_mode(mode)) {
