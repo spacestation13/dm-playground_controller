@@ -5,14 +5,14 @@ use std::{fs, io, os, path};
 ///  Takes a byond install zip file from a given [path], extracts it to /tmp/major/minor
 ///
 ///  Returns: Ok() if the unzip was successful, otherwise an Err()
-pub fn unzip(path: &str) -> Result<(), &str> {
+pub fn unzip(path: &str) -> Result<(), String> {
     let path_proper = path::Path::new(&path);
     let file = fs::File::open(path_proper).unwrap();
 
     let mut archive = zip::ZipArchive::new(file).unwrap();
 
     if archive.is_empty() {
-        return Err("Empty BYOND archive");
+        return Err("Empty BYOND archive".to_string());
     }
 
     let file_name = path_proper.file_stem().unwrap().to_str().unwrap(); // 514.1571_byond

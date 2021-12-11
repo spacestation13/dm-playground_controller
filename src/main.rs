@@ -18,7 +18,11 @@ fn main() {
             debug!("Receiving data on serial connection.");
             loop {
                 match port.read(serial_buf.as_mut_slice()) {
-                    Ok(n) => process_cmds(&serial_buf[..n]),
+                    Ok(n) => {
+                        let res = process_cmds(&serial_buf[..n]);
+                        res.expect("Error processing commands");
+                        //TODO: send ERR if res is Err or OK if res is Ok
+                    },
                     Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (), // Ignore timeouts
                     Err(e) => eprintln!("{:?}", e),
                 }
@@ -40,16 +44,19 @@ fn main() {
 /// - `s pid signal` - Send the given signal to the given pid
 /// - `p` - Poll for data, sends back (p pid data\n)* and/or (o pid stdout\n)* with OK for end of data
 /// - `q` - Quit
-fn process_cmds(serial_buf: &[u8]) {
+fn process_cmds(serial_buf: &[u8]) -> Result<(), String> {
     // Tokenize and parse the command
     let cmd = String::from_utf8_lossy(serial_buf);
     let cmd_tokens: Vec<&str> = cmd.split_whitespace().collect();
     match cmd_tokens.as_slice() {
-        ["u", in_zip_path] => unzip::unzip(in_zip_path).expect("Unzip failed"),
+        ["u", in_zip_path] => unzip::unzip(in_zip_path),
         ["r", process_name, args, env_vars] => unimplemented!(),
-        ["s", pid, signal] => signal::send_signal(pid, signal).expect("Failed to send signal"),
+        ["s", pid, signal] => signal::send_signal(pid, signal),
         ["p", pid] => unimplemented!(),
         ["q"] => unimplemented!(),
-        _ => eprintln!("Unknown command: {}", cmd),
+        _ => {
+            eprintln!("Unknown cmd: {}", cmd);
+            Err(format!("Unknown cmd: {}", cmd))
+        }
     }
 }
