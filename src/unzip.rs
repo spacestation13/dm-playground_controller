@@ -5,7 +5,7 @@ use std::{fs, io, os, path};
 ///  Takes a byond install zip file from a given [path], extracts it to /tmp/major/minor
 ///
 ///  Returns: Ok() if the unzip was successful, otherwise an Err()
-pub fn unzip(path: &str) -> Result<(), String> {
+pub fn unzip(path: String) -> Result<(), String> {
     let path_proper = path::Path::new(&path);
     let file = fs::File::open(path_proper).unwrap();
 

@@ -6,7 +6,7 @@ Protocol is uni-directional in the way commands are issued. The client always is
 with either:
 - `OK`
 - Data followed by `\nOK`
-- `ERR <base64 error>\n`
+- `<base64 error>\nERR`
 
 Strings and binary data must always be base64 encoded.
 
