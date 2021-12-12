@@ -1,12 +1,20 @@
 #[macro_use]
 mod helpers;
 mod signal;
+mod poll;
 mod process;
 
 use std::io;
 use std::time::Duration;
 
 use base64::{encode, decode};
+use poll::send_poll_data;
+use serialport::SerialPort;
+
+pub struct PollData {
+    typ: String,
+    data: String,
+}
 
 fn main() {
     // Open serial connection on /dev/ttyS2, max baud rate
@@ -17,11 +25,12 @@ fn main() {
     match port {
         Ok(mut port) => {
             let mut serial_buf: Vec<u8> = vec![0; 5000];
+            let mut poll_data: Vec<PollData> = vec!();
             debug!("Receiving data on serial connection.");
             loop {
                 match port.read(serial_buf.as_mut_slice()) {
                     Ok(n) => {
-                        let res = process_cmds(&serial_buf[..n]);
+                        let res = process_cmds(&serial_buf[..n], &poll_data, &mut *port);
                         //TODO: send OK if res is Ok
                         match res {
                             Ok(_) => {
@@ -52,15 +61,14 @@ fn main() {
 /// - `s pid signal` - Send the given signal to the given pid
 /// - `p` - Poll for data, sends back (p pid data\n)* and/or (o pid stdout\n)* with OK for end of data
 /// - `q` - Quit
-fn process_cmds(serial_buf: &[u8]) -> Result<String, String> {
+fn process_cmds(serial_buf: &[u8], poll_data: &[PollData], port: &mut (impl SerialPort + ?Sized)) -> Result<String, String> {
     // Tokenize and parse the command
     let cmd = String::from_utf8_lossy(serial_buf);
     let cmd_tokens: Vec<&str> = cmd.split_whitespace().collect();
     match cmd_tokens.as_slice() {
-        ["u", in_zip_path] => process::unzip(String::from_utf8(decode(in_zip_path).expect("Invalid b64")).unwrap()),
         ["r", process_name, args, env_vars] => unimplemented!(),
         ["s", pid, signal] => signal::send_signal(pid, signal),
-        ["p", pid] => unimplemented!(),
+        ["p", pid] => send_poll_data(port, poll_data),
         ["q"] => unimplemented!(),
         _ => {
             eprintln!("Unknown cmd: {}", cmd);

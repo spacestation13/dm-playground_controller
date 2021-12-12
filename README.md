@@ -21,9 +21,9 @@ For responses, line breaks should be used as seperator when possible for respons
 #### Response
 
 ```
-(<type> <data>\n)*OK
+(<typ> <data>\n)*OK
 ```
-type: (STR) Type of the poll event
+typ: (STR) Type of the poll event
 
 data: (ANY) Data associated with the poll event
 #### Example
