@@ -11,7 +11,7 @@ pub fn send_signal(pid: &&str, signal: &&str) -> Result<String, String> {
         nix::unistd::Pid::from_raw(pid.parse::<i32>().expect("Malformed pid")),
         sig,
     ) {
-        Ok(_) => Ok("OK\n".into()),
+        Ok(_) => Ok("".into()),
         Err(e) => Err(format!(
             "Error sending signal {} to pid {}: {}\n",
             sig, pid, e

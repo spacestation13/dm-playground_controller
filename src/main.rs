@@ -41,6 +41,7 @@ fn main() {
                                     .unwrap();
                             }
                         }
+                        port.flush().expect("Couldn't flush serial on end");
                     }
                     Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (), // Ignore timeouts
                     Err(e) => eprintln!("{:?}", e),
