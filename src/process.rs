@@ -1,9 +1,9 @@
-//! Handles unzipping functionality for BYOND installation zips
+//! Handles subprocess calling and buffering of stdout and stdin
 
 use std::{fs, path};
 use subprocess::Exec;
 
-///  Takes a byond install zip file from a given [path], extracts it to /tmp/major/minor
+/// Takes in x y z
 ///
 ///  Returns: Ok() if the unzip was successful, otherwise an Err()
 pub fn process(path: String) -> Result<String, String> {
