@@ -56,10 +56,10 @@ fn main() {
 /// Process the serial buffer and parse commands therein
 ///
 /// Commands:
-/// - `r process_name args env_vars` - Run the specified process with the given arguments and environment variables
-/// - `s pid signal` - Send the given signal to the given pid
-/// - `p` - Poll for data, sends back (p pid data\n)* and/or (o pid stdout\n)* with OK for end of data
-/// - `q` - Quit
+/// - `run process_name args env_vars` - Run the specified process with the given arguments and environment variables
+/// - `signal pid signal` - Send the given signal to the given pid
+/// - `poll` - Poll for data, sends it all back
+/// - `quit` - Quit
 fn process_cmds(
     serial_buf: &[u8],
     poll_data: &[PollData],
@@ -69,10 +69,13 @@ fn process_cmds(
     let cmd = String::from_utf8_lossy(serial_buf);
     let cmd_tokens: Vec<&str> = cmd.split_whitespace().collect();
     match cmd_tokens.as_slice() {
-        ["run", process_name, args, env_vars] => process::process(process_name.to_string()),
+        ["run", process_name, args, env_vars] => process::process(process_name, args, env_vars),
         ["signal", pid, signal] => signal::send_signal(pid, signal),
         ["poll"] => send_poll_data(port, poll_data),
-        ["q"] => unimplemented!(),
+        ["quit"] => {
+            port.flush().expect("Couldn't flush serial on exit");
+            std::process::exit(0);
+        }
         _ => {
             eprintln!("Unknown cmd: {}", cmd);
             Err(format!("Unknown cmd: {}", cmd))

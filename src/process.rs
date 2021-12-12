@@ -6,8 +6,8 @@ use subprocess::Exec;
 /// Takes in x y z
 ///
 ///  Returns: Ok() if the unzip was successful, otherwise an Err()
-pub fn process(path: String) -> Result<String, String> {
-    let path_proper = path::Path::new(&path);
+pub fn process(process: &&str, args: &&str, env_vars: &&str) -> Result<String, String> {
+    let path_proper = path::Path::new(&process);
 
     let file_name = path_proper.file_stem().unwrap().to_str().unwrap(); // 514.1571_byond
     let major = &file_name[0..3]; // 514
