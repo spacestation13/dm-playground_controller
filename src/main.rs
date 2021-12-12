@@ -1,7 +1,7 @@
 #[macro_use]
 mod helpers;
 mod signal;
-mod unzip;
+mod process;
 
 use std::io;
 use std::time::Duration;
@@ -9,8 +9,8 @@ use std::time::Duration;
 use base64::{encode, decode};
 
 fn main() {
-    // Open serial connection on /dev/ttyS2, baud rate is chosen for <1ms latency
-    let port = serialport::new("/dev/ttyS2", 19_200)
+    // Open serial connection on /dev/ttyS2, max baud rate
+    let port = serialport::new("/dev/ttyS2", 115_200)
         .timeout(Duration::from_millis(10))
         .open();
 
@@ -58,7 +58,7 @@ fn process_cmds(serial_buf: &[u8]) -> Result<String, String> {
     let cmd = String::from_utf8_lossy(serial_buf);
     let cmd_tokens: Vec<&str> = cmd.split_whitespace().collect();
     match cmd_tokens.as_slice() {
-        ["u", in_zip_path] => unzip::unzip(String::from_utf8(decode(in_zip_path).expect("Invalid b64")).unwrap()),
+        ["u", in_zip_path] => process::unzip(String::from_utf8(decode(in_zip_path).expect("Invalid b64")).unwrap()),
         ["r", process_name, args, env_vars] => unimplemented!(),
         ["s", pid, signal] => signal::send_signal(pid, signal),
         ["p", pid] => unimplemented!(),
