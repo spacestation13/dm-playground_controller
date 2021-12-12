@@ -59,7 +59,6 @@ fn main() {
 /// - `run process_name args env_vars` - Run the specified process with the given arguments and environment variables
 /// - `signal pid signal` - Send the given signal to the given pid
 /// - `poll` - Poll for data, sends it all back
-/// - `quit` - Quit
 fn process_cmds(
     serial_buf: &[u8],
     poll_data: &Rc<RefCell<Vec<PollData>>>,
@@ -73,16 +72,8 @@ fn process_cmds(
         ["run", process_name, args, env_vars] => {
             process::process(process_name, args, env_vars, poll_data)
         }
-
         ["signal", pid, signal] => signal::send_signal(pid, signal),
-
         ["poll"] => poll::send_poll_data(port, poll_data),
-
-        ["quit"] => {
-            port.flush().expect("Couldn't flush serial on exit");
-            std::process::exit(0);
-        }
-
         _ => {
             eprintln!("Unknown cmd: {}", cmd);
             Err(format!("Unknown cmd: {}", cmd))

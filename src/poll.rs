@@ -18,5 +18,6 @@ pub fn send_poll_data(
             return Err(format!("Error writing to serial during poll send: {}", e));
         }
     }
+    port.flush().expect("Couldn't flush serial on poll end");
     Ok("OK".into())
 }
