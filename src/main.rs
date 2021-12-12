@@ -4,11 +4,11 @@ mod poll;
 mod process;
 mod signal;
 
-use std::io;
+use std::cell::RefCell;
 use std::time::Duration;
+use std::{io, rc::Rc};
 
 use base64::{decode, encode};
-use poll::send_poll_data;
 use serialport::SerialPort;
 
 pub struct PollData {
@@ -25,7 +25,7 @@ fn main() {
     match port {
         Ok(mut port) => {
             let mut serial_buf: Vec<u8> = vec![0; 5000];
-            let mut poll_data: Vec<PollData> = vec![];
+            let poll_data: Rc<RefCell<Vec<PollData>>> = Rc::new(RefCell::new(vec![]));
             debug!("Receiving data on serial connection.");
             loop {
                 match port.read(serial_buf.as_mut_slice()) {
@@ -62,20 +62,27 @@ fn main() {
 /// - `quit` - Quit
 fn process_cmds(
     serial_buf: &[u8],
-    poll_data: &[PollData],
+    poll_data: &Rc<RefCell<Vec<PollData>>>,
     port: &mut (impl SerialPort + ?Sized),
 ) -> Result<String, String> {
     // Tokenize and parse the command
     let cmd = String::from_utf8_lossy(serial_buf);
     let cmd_tokens: Vec<&str> = cmd.split_whitespace().collect();
+
     match cmd_tokens.as_slice() {
-        ["run", process_name, args, env_vars] => process::process(process_name, args, env_vars),
+        ["run", process_name, args, env_vars] => {
+            process::process(process_name, args, env_vars, poll_data)
+        }
+
         ["signal", pid, signal] => signal::send_signal(pid, signal),
-        ["poll"] => send_poll_data(port, poll_data),
+
+        ["poll"] => poll::send_poll_data(port, poll_data),
+
         ["quit"] => {
             port.flush().expect("Couldn't flush serial on exit");
             std::process::exit(0);
         }
+
         _ => {
             eprintln!("Unknown cmd: {}", cmd);
             Err(format!("Unknown cmd: {}", cmd))
