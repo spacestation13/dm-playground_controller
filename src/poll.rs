@@ -15,9 +15,9 @@ pub fn send_poll_data(
 
     for dat in poll_data.iter() {
         if let Err(e) = port.write_all(encode(format!("{} {}\n", &dat.typ, &dat.data)).as_bytes()) {
-            return Err(format!("Error writing to serial during poll send: {}", e));
+            return Err(format!("Error writing to serial during poll send: {}\n", e));
         }
     }
     port.flush().expect("Couldn't flush serial on poll end");
-    Ok("OK".into())
+    Ok("OK\n".into())
 }

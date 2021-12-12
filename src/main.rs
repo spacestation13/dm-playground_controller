@@ -31,11 +31,13 @@ fn main() {
                 match port.read(serial_buf.as_mut_slice()) {
                     Ok(n) => {
                         let res = process_cmds(&serial_buf[..n], &poll_data, &mut *port);
-                        //TODO: send OK if res is Ok
                         match res {
-                            Ok(_) => {}
+                            Ok(s) => {
+                                port.write_all(encode(format!("{}OK\0", &s)).as_bytes())
+                                    .unwrap();
+                            }
                             Err(e) => {
-                                port.write_fmt(format_args!("{}\nERR\0", encode(&e)))
+                                port.write_all(encode(format!("{}ERR\0", &e)).as_bytes())
                                     .unwrap();
                             }
                         }
@@ -76,7 +78,7 @@ fn process_cmds(
         ["poll"] => poll::send_poll_data(port, poll_data),
         _ => {
             eprintln!("Unknown cmd: {}", cmd);
-            Err(format!("Unknown cmd: {}", cmd))
+            Err(format!("Unknown cmd: {}\n", cmd))
         }
     }
 }

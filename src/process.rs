@@ -22,7 +22,7 @@ pub fn process(
 
     let tmp_path = format!("/tmp/{}/{}", major, minor);
     fs::create_dir_all(&tmp_path)
-        .unwrap_or_else(|_| panic!("Couldn't create BYOND dir: {}", tmp_path));
+        .unwrap_or_else(|_| panic!("Couldn't create BYOND dir: {}\n", tmp_path));
 
     let _exit_status = Exec::cmd("umount").arg(path_proper).join().unwrap();
     let dat: PollData = PollData {
@@ -31,5 +31,5 @@ pub fn process(
     };
     poll_data.borrow_mut().push(dat);
 
-    Ok("OK".into())
+    Ok("OK\n".into())
 }
