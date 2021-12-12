@@ -1,12 +1,12 @@
 //! Handles unzipping functionality for BYOND installation zips
 
-use std::{fs, io, os, path};
+use std::{fs, path};
 use subprocess::Exec;
 
 ///  Takes a byond install zip file from a given [path], extracts it to /tmp/major/minor
 ///
 ///  Returns: Ok() if the unzip was successful, otherwise an Err()
-pub fn unzip(path: String) -> Result<String, String> {
+pub fn process(path: String) -> Result<String, String> {
     let path_proper = path::Path::new(&path);
 
     let file_name = path_proper.file_stem().unwrap().to_str().unwrap(); // 514.1571_byond
