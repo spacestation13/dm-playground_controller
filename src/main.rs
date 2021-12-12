@@ -16,7 +16,7 @@ fn main() {
 
     match port {
         Ok(mut port) => {
-            let mut serial_buf: Vec<u8> = vec![0; 1000];
+            let mut serial_buf: Vec<u8> = vec![0; 5000];
             debug!("Receiving data on serial connection.");
             loop {
                 match port.read(serial_buf.as_mut_slice()) {
@@ -25,7 +25,7 @@ fn main() {
                         //TODO: send OK if res is Ok
                         match res {
                             Ok(_) => {
-
+                                
                             },
                             Err(e) => {
                                 port.write_fmt(format_args!("{}\nERR\0", encode(&e))).unwrap();
@@ -53,7 +53,7 @@ fn main() {
 /// - `s pid signal` - Send the given signal to the given pid
 /// - `p` - Poll for data, sends back (p pid data\n)* and/or (o pid stdout\n)* with OK for end of data
 /// - `q` - Quit
-fn process_cmds(serial_buf: &[u8]) -> Result<(), String> {
+fn process_cmds(serial_buf: &[u8]) -> Result<String, String> {
     // Tokenize and parse the command
     let cmd = String::from_utf8_lossy(serial_buf);
     let cmd_tokens: Vec<&str> = cmd.split_whitespace().collect();
