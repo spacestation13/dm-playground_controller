@@ -37,37 +37,6 @@ data: (ANY) Data associated with the poll event
 
 ___
 
-### Unzip
-#### Command
-`unzip <inPath>`
-
-path: (B64_STR) Absolute path to a .zip file
-
-The file should be extracted to a subdirectory in /tmp/dm-playground. An event will be emitted once the extraction is complete
-#### Response
-```
-<outPath>
-OK
-```
-outPath: (B64_STR) Absolute path to a directory that will contain the extracted contents of the zip file
-#### Example
-```
-> unzip L21udC9ob3N0L2J5b25kL2J5b25kLTUxMy4xMjQ1LnppcA==
-< L3RtcC9kbS1wbGF5Z3JvdW5kL2J5b25kLTUxMy4xMjQ1Lw==
-< OK
-```
-
-#### Poll Events
-##### Unzipped
-###### Format
-unzipped: `unzipped <outPath>`
-
-outPath: (B64_STR) Absolute path to a directory that contains the extracted contents of the zip file
-###### Example
-Ex: `unzipped L3RtcC9kbS1wbGF5Z3JvdW5kL2J5b25kLTUxMy4xMjQ1Lw==`
-
-___
-
 ### Signal
 #### Command
 `signal <pid> <signal>`

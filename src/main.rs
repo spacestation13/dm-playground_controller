@@ -48,7 +48,6 @@ fn main() {
 /// Process the serial buffer and parse commands therein
 ///
 /// Commands:
-/// - `u in_zip_path` - Unzip the BYOND zip file at the given path
 /// - `r process_name args env_vars` - Run the specified process with the given arguments and environment variables
 /// - `s pid signal` - Send the given signal to the given pid
 /// - `p` - Poll for data, sends back (p pid data\n)* and/or (o pid stdout\n)* with OK for end of data
