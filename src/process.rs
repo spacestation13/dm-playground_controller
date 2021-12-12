@@ -43,17 +43,16 @@ pub fn process(
         env_vars.push((var, val))
     }
 
-    let _exit_status = Exec::cmd(process)
+    let proc_capture = Exec::cmd(process)
         .arg(args)
         .env_extend(&env_vars)
-        .join()
-        .unwrap();
-
-    let dat: PollData = PollData {
-        typ: "".into(),
-        data: "".into(),
+        .capture()
+        .expect("Process failure");
+    let stderr: PollData = PollData {
+        typ: "stdout".into(),
+        data: proc_capture.stdout_str(),
     };
-    poll_data.borrow_mut().push(dat);
+    poll_data.borrow_mut().push(stderr);
 
     Ok("OK\n".into())
 }

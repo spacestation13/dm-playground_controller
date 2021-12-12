@@ -10,6 +10,8 @@ with either:
 
 Strings and binary data must always be base64 encoded.
 
+Only UTF-8 is supported.
+
 For commands, spaces should be used to seperate arguments.
 
 For responses, line breaks should be used as seperator when possible for response data
