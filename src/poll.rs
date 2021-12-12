@@ -1,5 +1,5 @@
 //! Handles poll data being sent through the serial connection
-//!
+
 use crate::PollData;
 
 use base64::encode;

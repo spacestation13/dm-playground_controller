@@ -2,29 +2,53 @@
 
 use crate::PollData;
 
-use std::{cell::RefCell, fs, path, rc::Rc};
+use base64::decode;
+use std::{cell::RefCell, rc::Rc};
 use subprocess::Exec;
 
 /// Takes in x y z
 ///
 ///  Returns: Ok() if the unzip was successful, otherwise an Err()
 pub fn process(
-    process: &&str,
-    _args: &&str,
-    _env_vars: &&str,
+    b_process: &&str,
+    b_args: &&str,
+    b_env_vars: &&str,
     poll_data: &Rc<RefCell<Vec<PollData>>>,
 ) -> Result<String, String> {
-    let path_proper = path::Path::new(&process);
+    let process = match decode(b_process) {
+        Ok(dec_process) => String::from_utf8(dec_process).expect("Invalid UTF8 for exec path"),
+        Err(e) => return Err(format!("Error decoding exec path: {}\n", e.to_string())),
+    };
 
-    let file_name = path_proper.file_stem().unwrap().to_str().unwrap(); // 514.1571_byond
-    let major = &file_name[0..3]; // 514
-    let minor = &file_name[4..8]; // 1571
+    let args = match decode(b_args) {
+        Ok(dec_args) => String::from_utf8(dec_args).expect("Invalid UTF8 for exec args"),
+        Err(e) => return Err(format!("Error decoding exec args: {}\n", e.to_string())),
+    };
 
-    let tmp_path = format!("/tmp/{}/{}", major, minor);
-    fs::create_dir_all(&tmp_path)
-        .unwrap_or_else(|_| panic!("Couldn't create BYOND dir: {}\n", tmp_path));
+    let raw_env_vars = match decode(b_env_vars) {
+        Ok(dec_env_vars) => {
+            String::from_utf8(dec_env_vars).expect("Invalid UTF8 for exec env vars")
+        }
+        Err(e) => return Err(format!("Error decoding exec env vars: {}\n", e.to_string())),
+    };
 
-    let _exit_status = Exec::cmd("umount").arg(path_proper).join().unwrap();
+    // `VAR1=VAL1;VAR2=VAL2;`
+    let mut env_vars = vec![];
+    let split_env_vars = raw_env_vars.split(';');
+    for pair in split_env_vars {
+        // `VAR1=VAL1`
+        let mut pair_sp = pair.split('=');
+        let var = pair_sp.next().expect("Malformed env arg variable");
+        let val = pair_sp.last().expect("Malformed env arg value");
+        env_vars.push((var, val))
+    }
+
+    let _exit_status = Exec::cmd(process)
+        .arg(args)
+        .env_extend(&env_vars)
+        .join()
+        .unwrap();
+
     let dat: PollData = PollData {
         typ: "".into(),
         data: "".into(),
