@@ -14,15 +14,9 @@ pub fn send_poll_data(
     let poll_data = &*data.borrow();
 
     for dat in poll_data.iter() {
-        if let Err(e) = port.write_all(
-            encode(format!(
-                "{} {}\n",
-                //If one of the types has an utf8 emoji in it, please euthanize me -alex
-                dat.typ.to_string().to_ascii_lowercase(),
-                &dat.data
-            ))
-            .as_bytes(),
-        ) {
+        if let Err(e) =
+            port.write_all(encode(format!("{} {}\n", dat.typ.to_string(), &dat.data)).as_bytes())
+        {
             return Err(format!("Error writing to serial during poll send: {}\n", e));
         }
     }

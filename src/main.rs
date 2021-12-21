@@ -11,8 +11,11 @@ use serialport::SerialPort;
 
 #[derive(strum_macros::Display)]
 pub enum PollType {
+    #[strum(to_string = "pidexit")]
     PidExit,
+    #[strum(to_string = "stdout")]
     Stdout,
+    #[strum(to_string = "stderr")]
     Stderr,
 }
 
@@ -43,14 +46,15 @@ async fn main() {
                         let result = res.await;
                         match result {
                             Ok(s) => {
-                                port.write_all(format!("{}\nOK\0", &s).as_bytes()).unwrap();
+                                port.write_all(format!("{}\nOK\0", &s).as_bytes())
+                                    .expect("Error writing to serial");
                             }
                             Err(e) => {
                                 port.write_all(format!("{}\nERR\0", encode(&e)).as_bytes())
-                                    .unwrap();
+                                    .expect("Error writing to serial");
                             }
                         }
-                        port.flush().expect("Couldn't flush serial on end");
+                        port.flush().expect("Couldn't flush serial on reading end");
                     }
                     Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (), // Ignore timeouts
                     Err(e) => eprintln!("{:?}", e),
