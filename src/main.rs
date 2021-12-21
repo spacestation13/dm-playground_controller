@@ -30,6 +30,9 @@ async fn main() {
 
     match port {
         Ok(mut port) => {
+            port.write_all("OK\0".as_bytes())
+                .expect("Error writing to serial");
+
             let mut serial_buf: Vec<u8> = vec![0; 5000];
             let poll_data: Arc<RefCell<Vec<PollData>>> = Arc::new(RefCell::new(vec![]));
             debug!("Receiving data on serial connection.");
@@ -40,11 +43,10 @@ async fn main() {
                         let result = res.await;
                         match result {
                             Ok(s) => {
-                                port.write_all(encode(format!("{}\nOK\0", &s)).as_bytes())
-                                    .unwrap();
+                                port.write_all(format!("{}\nOK\0", &s).as_bytes()).unwrap();
                             }
                             Err(e) => {
-                                port.write_all(encode(format!("{}\nERR\0", &e)).as_bytes())
+                                port.write_all(format!("{}\nERR\0", encode(&e)).as_bytes())
                                     .unwrap();
                             }
                         }
@@ -80,7 +82,7 @@ async fn process_cmds(
 
     match cmd_tokens.as_slice() {
         ["run", process_name, args, env_vars] => {
-            process::process(process_name, args, env_vars, poll_data)
+            process::process(process_name, args, env_vars, poll_data).await
         }
         ["signal", pid, signal] => signal::send_signal(pid, signal),
         ["poll"] => poll::send_poll_data(port, poll_data),

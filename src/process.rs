@@ -9,7 +9,7 @@ use subprocess::Exec;
 /// Takes in x y z
 ///
 ///  Returns: Ok() if the unzip was successful, otherwise an Err()
-pub fn process(
+pub async fn process(
     b_process: &&str,
     b_args: &&str,
     b_env_vars: &&str,
@@ -42,6 +42,8 @@ pub fn process(
         let val = pair_sp.last().expect("Malformed env arg value");
         env_vars.push((var, val))
     }
+
+    tokio::spawn(async move {});
 
     // Blocking currently
     let proc_capture = Exec::cmd(process)
