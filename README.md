@@ -5,7 +5,7 @@ Basic rust controller application communicating over serial for [dm-playground](
 Protocol is uni-directional in the way commands are issued. The client always issues command and the server responds
 with either:
 
-- `<base64 data>\nOK\0`
+- `<data>\nOK\0`
 - `<base64 error>\nERR\0`
 
 Strings and binary data must always be base64 encoded.

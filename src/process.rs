@@ -1,9 +1,9 @@
 //! Handles subprocess calling and buffering of stdout and stdin
 
-use crate::PollData;
+use crate::{PollData, PollType};
 
 use base64::decode;
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, sync::Arc};
 use subprocess::Exec;
 
 /// Takes in x y z
@@ -13,7 +13,7 @@ pub fn process(
     b_process: &&str,
     b_args: &&str,
     b_env_vars: &&str,
-    poll_data: &Rc<RefCell<Vec<PollData>>>,
+    poll_data: &Arc<RefCell<Vec<PollData>>>,
 ) -> Result<String, String> {
     let process = match decode(b_process) {
         Ok(dec_process) => String::from_utf8(dec_process).expect("Invalid UTF8 for exec path"),
@@ -43,15 +43,18 @@ pub fn process(
         env_vars.push((var, val))
     }
 
+    // Blocking currently
     let proc_capture = Exec::cmd(process)
         .arg(args)
         .env_extend(&env_vars)
         .capture()
         .expect("Process failure");
+
     let stderr: PollData = PollData {
-        typ: "stdout".into(),
+        typ: PollType::Stderr,
         data: proc_capture.stdout_str(),
     };
+
     poll_data.borrow_mut().push(stderr);
 
     Ok("OK\n".into())

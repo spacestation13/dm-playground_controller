@@ -4,19 +4,25 @@ mod poll;
 mod process;
 mod signal;
 
-use std::cell::RefCell;
-use std::time::Duration;
-use std::{io, rc::Rc};
+use std::{cell::RefCell, io, sync::Arc, time::Duration};
 
-use base64::{decode, encode};
+use base64::encode;
 use serialport::SerialPort;
 
+#[derive(strum_macros::Display)]
+pub enum PollType {
+    PidExit,
+    Stdout,
+    Stderr,
+}
+
 pub struct PollData {
-    typ: String,
+    typ: PollType,
     data: String,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     // Open serial connection on /dev/ttyS2, max baud rate
     let port = serialport::new("/dev/ttyS2", 115_200)
         .timeout(Duration::from_millis(10))
@@ -25,19 +31,20 @@ fn main() {
     match port {
         Ok(mut port) => {
             let mut serial_buf: Vec<u8> = vec![0; 5000];
-            let poll_data: Rc<RefCell<Vec<PollData>>> = Rc::new(RefCell::new(vec![]));
+            let poll_data: Arc<RefCell<Vec<PollData>>> = Arc::new(RefCell::new(vec![]));
             debug!("Receiving data on serial connection.");
             loop {
                 match port.read(serial_buf.as_mut_slice()) {
                     Ok(n) => {
                         let res = process_cmds(&serial_buf[..n], &poll_data, &mut *port);
-                        match res {
+                        let result = res.await;
+                        match result {
                             Ok(s) => {
-                                port.write_all(encode(format!("{}OK\0", &s)).as_bytes())
+                                port.write_all(encode(format!("{}\nOK\0", &s)).as_bytes())
                                     .unwrap();
                             }
                             Err(e) => {
-                                port.write_all(encode(format!("{}ERR\0", &e)).as_bytes())
+                                port.write_all(encode(format!("{}\nERR\0", &e)).as_bytes())
                                     .unwrap();
                             }
                         }
@@ -62,9 +69,9 @@ fn main() {
 /// - `run process_name args env_vars` - Run the specified process with the given arguments and environment variables
 /// - `signal pid signal` - Send the given signal to the given pid
 /// - `poll` - Poll for data, sends it all back
-fn process_cmds(
+async fn process_cmds(
     serial_buf: &[u8],
-    poll_data: &Rc<RefCell<Vec<PollData>>>,
+    poll_data: &Arc<RefCell<Vec<PollData>>>,
     port: &mut (impl SerialPort + ?Sized),
 ) -> Result<String, String> {
     // Tokenize and parse the command
