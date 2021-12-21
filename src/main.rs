@@ -46,11 +46,11 @@ async fn main() {
                         let result = res.await;
                         match result {
                             Ok(s) => {
-                                port.write_all(format!("{}\nOK\0", &s).as_bytes())
+                                port.write_all(format!("{}OK\0", &s).as_bytes())
                                     .expect("Error writing to serial");
                             }
                             Err(e) => {
-                                port.write_all(format!("{}\nERR\0", encode(&e)).as_bytes())
+                                port.write_all(format!("{}ERR\0", encode(&e)).as_bytes())
                                     .expect("Error writing to serial");
                             }
                         }
