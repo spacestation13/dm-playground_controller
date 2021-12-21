@@ -7,7 +7,6 @@ mod signal;
 use std::{cell::RefCell, io, sync::Arc, time::Duration};
 
 use base64::encode;
-use serialport::SerialPort;
 
 #[derive(strum_macros::Display)]
 pub enum PollType {
@@ -42,7 +41,7 @@ async fn main() {
             loop {
                 match port.read(serial_buf.as_mut_slice()) {
                     Ok(n) => {
-                        let res = process_cmds(&serial_buf[..n], &poll_data, &mut *port);
+                        let res = process_cmds(&serial_buf[..n], &poll_data);
                         let result = res.await;
                         match result {
                             Ok(s) => {
@@ -78,7 +77,6 @@ async fn main() {
 async fn process_cmds(
     serial_buf: &[u8],
     poll_data: &Arc<RefCell<Vec<PollData>>>,
-    port: &mut (impl SerialPort + ?Sized),
 ) -> Result<String, String> {
     // Tokenize and parse the command
     let cmd = String::from_utf8_lossy(serial_buf);
@@ -89,7 +87,7 @@ async fn process_cmds(
             process::process(process_name, args, env_vars, poll_data).await
         }
         ["signal", pid, signal] => signal::send_signal(pid, signal),
-        ["poll"] => poll::send_poll_data(port, poll_data),
+        ["poll"] => poll::send_poll_data(poll_data),
         _ => {
             eprintln!("Unknown cmd: {}", cmd);
             Err(format!("Unknown cmd: {}\n", cmd))
