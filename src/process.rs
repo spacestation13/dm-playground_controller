@@ -45,17 +45,17 @@ pub async fn process(
     let mut state: EnvParserState = EnvParserState::Key;
     let mut skip = false;
 
-    let add_char = |char: char| {
-        if state == EnvParserState::Key {
-            tmpkey.push(char);
+    fn add_char(char: &char, state: &EnvParserState, tmpkey: &mut String, tmpval: &mut String) {
+        if *state == EnvParserState::Key {
+            tmpkey.push(*char);
         } else {
-            tmpval.push(char);
+            tmpval.push(*char);
         }
-    };
+    }
 
     for char in raw_env_vars.chars() {
         if skip {
-            add_char(char);
+            add_char(&char, &mut state, &mut tmpkey, &mut tmpval);
             continue;
         }
 
@@ -78,7 +78,7 @@ pub async fn process(
                 tmpkey = String::with_capacity(30);
                 tmpval = String::with_capacity(30);
             }
-            _ => add_char(char),
+            _ => add_char(&char, &mut state, &mut tmpkey, &mut tmpval),
         }
     }
 
