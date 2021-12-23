@@ -4,9 +4,14 @@ mod poll;
 mod process;
 mod signal;
 
-use std::{cell::RefCell, io, sync::Arc, time::Duration};
+use std::{
+    io,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use base64::encode;
+use subprocess::Popen;
 
 #[derive(strum_macros::Display)]
 pub enum PollType {
@@ -18,9 +23,16 @@ pub enum PollType {
     Stderr,
 }
 
+/// Holds polling data
 pub struct PollData {
     typ: PollType,
     data: String,
+}
+
+/// Holds information relating to a (possibly) open process
+pub struct ProcData {
+    pid: u32,
+    popen: Popen,
 }
 
 #[tokio::main]
@@ -32,16 +44,19 @@ async fn main() {
 
     match port {
         Ok(mut port) => {
+            // Hello message
             port.write_all("OK\0".as_bytes())
                 .expect("Error writing to serial");
 
             let mut serial_buf: Vec<u8> = vec![0; 5000];
-            let poll_data: Arc<RefCell<Vec<PollData>>> = Arc::new(RefCell::new(vec![]));
+            let poll_data: Arc<Mutex<Vec<PollData>>> = Arc::new(Mutex::new(vec![]));
+            let running_procs: Arc<Mutex<Vec<ProcData>>> = Arc::new(Mutex::new(vec![]));
+
             debug!("Receiving data on serial connection.");
             loop {
                 match port.read(serial_buf.as_mut_slice()) {
                     Ok(n) => {
-                        let res = process_cmds(&serial_buf[..n], &poll_data);
+                        let res = process_cmds(&serial_buf[..n], &poll_data, &running_procs);
                         let result = res.await;
                         match result {
                             Ok(s) => {
@@ -76,7 +91,8 @@ async fn main() {
 /// - `poll` - Poll for data, sends it all back
 async fn process_cmds(
     serial_buf: &[u8],
-    poll_data: &Arc<RefCell<Vec<PollData>>>,
+    poll_data: &Arc<Mutex<Vec<PollData>>>,
+    running_procs: &Arc<Mutex<Vec<ProcData>>>,
 ) -> Result<String, String> {
     // Tokenize and parse the command
     let cmd = String::from_utf8_lossy(serial_buf);
@@ -84,7 +100,7 @@ async fn process_cmds(
 
     match cmd_tokens.as_slice() {
         ["run", process_name, args, env_vars] => {
-            process::process(process_name, args, env_vars, poll_data).await
+            process::process(running_procs, process_name, args, env_vars, poll_data).await
         }
         ["signal", pid, signal] => signal::send_signal(pid, signal),
         ["poll"] => poll::send_poll_data(poll_data),

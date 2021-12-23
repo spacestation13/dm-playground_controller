@@ -1,9 +1,13 @@
 //! Handles subprocess calling and buffering of stdout and stdin
 
-use crate::{PollData, PollType};
+use crate::{PollData, PollType, ProcData};
 
 use base64::decode;
-use std::{cell::RefCell, sync::Arc};
+use std::{
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
+};
 use subprocess::Exec;
 
 #[derive(std::cmp::PartialEq)]
@@ -12,14 +16,15 @@ enum EnvParserState {
     Value,
 }
 
-/// Takes in x y z
+/// Takes in base64 process, args, and env vars data
 ///
-///  Returns: Ok() if the unzip was successful, otherwise an Err()
+///  Returns: Result
 pub async fn process(
+    running_procs: &Arc<Mutex<Vec<ProcData>>>,
     b_process: &&str,
     b_args: &&str,
     b_env_vars: &&str,
-    poll_data: &Arc<RefCell<Vec<PollData>>>,
+    poll_data: &Arc<Mutex<Vec<PollData>>>,
 ) -> Result<String, String> {
     let process = match decode(b_process) {
         Ok(dec_process) => String::from_utf8(dec_process).expect("Invalid UTF8 for exec path"),
@@ -91,28 +96,74 @@ pub async fn process(
         }
     }
 
-    tokio::spawn(async move {});
+    tokio::spawn(async move {
+        let mut proc = Exec::cmd(process)
+            .arg(args)
+            .env_extend(&env_vars)
+            .popen()
+            .expect("Failed to start process");
+
+        let pid = proc.pid().unwrap();
+
+        // running_procs.borrow_mut().push(ProcData {
+        //     pid: proc.pid().unwrap(),
+        //     popen: proc,
+        // });
+
+        let comms = proc.communicate_start(None);
+
+        // Loop the process
+        loop {
+            match proc.poll() {
+                // If the process has exited
+                Some(status) => {
+                    poll_data.lock().unwrap().push(PollData {
+                        typ: PollType::PidExit,
+                        data: format!("{} {:?}", pid, status),
+                    });
+                    break;
+                }
+                None => {
+                    let comm_data = comms.read_string().expect("Proc comms error:");
+                    let poll_lock = poll_data.lock().unwrap();
+                    if let Some(dat) = comm_data.0 {
+                        poll_lock.push(PollData {
+                            typ: PollType::Stdout,
+                            data: dat,
+                        });
+                    }
+                    if let Some(dat) = comm_data.1 {
+                        poll_lock.push(PollData {
+                            typ: PollType::Stderr,
+                            data: dat,
+                        });
+                    }
+                    thread::sleep(Duration::new(0, 100_000));
+                }
+            }
+        }
+    });
 
     // Blocking currently
-    let proc_capture = Exec::cmd(process)
-        .arg(args)
-        .env_extend(&env_vars)
-        .capture()
-        .expect("Process failure");
+    // let proc_capture = Exec::cmd(process)
+    //     .arg(args)
+    //     .env_extend(&env_vars)
+    //     .capture()
+    //     .expect("Process failure");
 
-    if !proc_capture.stdout_str().is_empty() {
-        poll_data.borrow_mut().push(PollData {
-            typ: PollType::Stdout,
-            data: proc_capture.stdout_str(),
-        })
-    }
+    // if !proc_capture.stdout_str().is_empty() {
+    //     poll_data.borrow_mut().push(PollData {
+    //         typ: PollType::Stdout,
+    //         data: proc_capture.stdout_str(),
+    //     })
+    // }
 
-    if !proc_capture.stderr_str().is_empty() {
-        poll_data.borrow_mut().push(PollData {
-            typ: PollType::Stderr,
-            data: proc_capture.stderr_str(),
-        })
-    }
+    // if !proc_capture.stderr_str().is_empty() {
+    //     poll_data.borrow_mut().push(PollData {
+    //         typ: PollType::Stderr,
+    //         data: proc_capture.stderr_str(),
+    //     })
+    // }
 
     Ok("OK\n".into())
 }

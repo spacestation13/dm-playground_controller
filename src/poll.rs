@@ -2,11 +2,11 @@
 
 use crate::PollData;
 
-use std::{cell::RefCell, sync::Arc};
+use std::sync::{Arc, Mutex};
 
 /// Sends the poll data through the serial connection
-pub fn send_poll_data(data: &Arc<RefCell<Vec<PollData>>>) -> Result<String, String> {
-    let poll_data = &*data.borrow();
+pub fn send_poll_data(data: &Arc<Mutex<Vec<PollData>>>) -> Result<String, String> {
+    let poll_data = &*data.lock().unwrap();
 
     Ok(poll_data
         .iter()
