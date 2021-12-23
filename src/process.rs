@@ -55,7 +55,7 @@ pub async fn process(
 
     for char in raw_env_vars.chars() {
         if skip {
-            add_char(&char, &mut state, &mut tmpkey, &mut tmpval);
+            add_char(&char, &state, &mut tmpkey, &mut tmpval);
             continue;
         }
 
@@ -78,7 +78,7 @@ pub async fn process(
                 tmpkey = String::with_capacity(30);
                 tmpval = String::with_capacity(30);
             }
-            _ => add_char(&char, &mut state, &mut tmpkey, &mut tmpval),
+            _ => add_char(&char, &state, &mut tmpkey, &mut tmpval),
         }
     }
 
