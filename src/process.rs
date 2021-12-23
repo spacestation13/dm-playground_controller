@@ -105,6 +105,7 @@ pub async fn process(
 
         let pid = proc.pid().unwrap();
 
+        //TODO: To keep track of all running processes - do we actually need this?
         // running_procs.borrow_mut().push(ProcData {
         //     pid: proc.pid().unwrap(),
         //     popen: proc,
@@ -112,17 +113,19 @@ pub async fn process(
 
         let comms = proc.communicate_start(None);
 
-        // Loop the process
+        // Loop the process inside the thread
         loop {
             match proc.poll() {
                 // If the process has exited
                 Some(status) => {
+                    //TODO: Handle cleanup push of comms data before pidexit push
                     poll_data.lock().unwrap().push(PollData {
                         typ: PollType::PidExit,
                         data: format!("{} {:?}", pid, status),
                     });
                     break;
                 }
+                // If the process is still running
                 None => {
                     let comm_data = comms.read_string().expect("Proc comms error:");
                     let poll_lock = poll_data.lock().unwrap();
@@ -138,32 +141,12 @@ pub async fn process(
                             data: dat,
                         });
                     }
+                    // How long we sleep inside the thread to check if exited or more poll data
                     thread::sleep(Duration::new(0, 100_000));
                 }
             }
         }
     });
-
-    // Blocking currently
-    // let proc_capture = Exec::cmd(process)
-    //     .arg(args)
-    //     .env_extend(&env_vars)
-    //     .capture()
-    //     .expect("Process failure");
-
-    // if !proc_capture.stdout_str().is_empty() {
-    //     poll_data.borrow_mut().push(PollData {
-    //         typ: PollType::Stdout,
-    //         data: proc_capture.stdout_str(),
-    //     })
-    // }
-
-    // if !proc_capture.stderr_str().is_empty() {
-    //     poll_data.borrow_mut().push(PollData {
-    //         typ: PollType::Stderr,
-    //         data: proc_capture.stderr_str(),
-    //     })
-    // }
 
     Ok("OK\n".into())
 }
