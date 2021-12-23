@@ -24,7 +24,7 @@ pub async fn process(
     b_process: &&str,
     b_args: &&str,
     b_env_vars: &&str,
-    poll_data: &Arc<Mutex<Vec<PollData>>>,
+    poll_data_main: &Arc<Mutex<Vec<PollData>>>,
 ) -> Result<String, String> {
     let process = match decode(b_process) {
         Ok(dec_process) => String::from_utf8(dec_process).expect("Invalid UTF8 for exec path"),
@@ -60,6 +60,7 @@ pub async fn process(
         }
     }
 
+    // Process environmental vars
     for char in raw_env_vars.chars() {
         // This is triggered if we escape
         if skip {
@@ -96,6 +97,8 @@ pub async fn process(
         }
     }
 
+    let poll_data = poll_data_main.clone();
+
     tokio::spawn(async move {
         let mut proc = Exec::cmd(process)
             .arg(args)
@@ -111,7 +114,7 @@ pub async fn process(
         //     popen: proc,
         // });
 
-        let comms = proc.communicate_start(None);
+        let mut comms = proc.communicate_start(None);
 
         // Loop the process inside the thread
         loop {
@@ -128,7 +131,7 @@ pub async fn process(
                 // If the process is still running
                 None => {
                     let comm_data = comms.read_string().expect("Proc comms error:");
-                    let poll_lock = poll_data.lock().unwrap();
+                    let mut poll_lock = poll_data.lock().unwrap();
                     if let Some(dat) = comm_data.0 {
                         poll_lock.push(PollData {
                             typ: PollType::Stdout,
