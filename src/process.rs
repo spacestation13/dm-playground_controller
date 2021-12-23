@@ -100,12 +100,19 @@ pub async fn process(
         .capture()
         .expect("Process failure");
 
-    let stderr: PollData = PollData {
-        typ: PollType::Stderr,
-        data: proc_capture.stdout_str(),
-    };
+    if !proc_capture.stdout_str().is_empty() {
+        poll_data.borrow_mut().push(PollData {
+            typ: PollType::Stdout,
+            data: proc_capture.stdout_str(),
+        })
+    }
 
-    poll_data.borrow_mut().push(stderr);
+    if !proc_capture.stderr_str().is_empty() {
+        poll_data.borrow_mut().push(PollData {
+            typ: PollType::Stderr,
+            data: proc_capture.stderr_str(),
+        })
+    }
 
     Ok("OK\n".into())
 }
