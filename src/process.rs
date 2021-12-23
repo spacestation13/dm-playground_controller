@@ -38,6 +38,7 @@ pub async fn process(
         Err(e) => return Err(format!("Error decoding exec env vars: {}\n", e.to_string())),
     };
 
+    // Handle environment vars parsing into tuples
     // `VAR1=VAL1;VAR2=VAL2;`
     let mut tmpkey = String::with_capacity(30);
     let mut tmpval = String::with_capacity(30);
@@ -45,6 +46,7 @@ pub async fn process(
     let mut state: EnvParserState = EnvParserState::Key;
     let mut skip = false;
 
+    /// Depending on state, adds the given char to the proper tuple portion
     fn add_char(char: &char, state: &EnvParserState, tmpkey: &mut String, tmpval: &mut String) {
         if *state == EnvParserState::Key {
             tmpkey.push(*char);
@@ -54,20 +56,26 @@ pub async fn process(
     }
 
     for char in raw_env_vars.chars() {
+        // This is triggered if we escape
         if skip {
             add_char(&char, &state, &mut tmpkey, &mut tmpval);
             continue;
         }
 
         match char {
-            '\\' => skip = true,
+            '\\' => {
+                // escape
+                skip = true
+            }
             '=' => {
+                // switch state
                 if state != EnvParserState::Key {
                     return Err("Env arg has several values".to_string());
                 }
                 state = EnvParserState::Value;
             }
             ';' => {
+                // signal switch into next
                 if state != EnvParserState::Value {
                     return Err("Env arg is missing value".to_string());
                 }
@@ -78,18 +86,9 @@ pub async fn process(
                 tmpkey = String::with_capacity(30);
                 tmpval = String::with_capacity(30);
             }
+            // otherwise add to the block in our current state
             _ => add_char(&char, &state, &mut tmpkey, &mut tmpval),
         }
-    }
-
-    let mut env_vars = vec![];
-    let split_env_vars = raw_env_vars.split(';');
-    for pair in split_env_vars {
-        // `VAR1=VAL1`
-        let mut pair_sp = pair.split('=');
-        let var = pair_sp.next().expect("Malformed env arg variable");
-        let val = pair_sp.last().expect("Malformed env arg value");
-        env_vars.push((var, val))
     }
 
     tokio::spawn(async move {});
