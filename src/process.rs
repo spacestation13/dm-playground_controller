@@ -106,7 +106,7 @@ pub async fn process(
             .popen()
             .expect("Failed to start process");
 
-        let pid = proc.pid().unwrap();
+        let pid = proc.pid().unwrap(); // Must exist for a newly opened process
 
         //TODO: To keep track of all running processes - do we actually need this?
         // running_procs.borrow_mut().push(ProcData {
