@@ -5,7 +5,7 @@ mod process;
 mod signal;
 
 use std::{
-    io,
+    io::{self, Read},
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -48,31 +48,52 @@ async fn main() {
             port.write_all("OK\0".as_bytes())
                 .expect("Error writing to serial");
 
-            let mut serial_buf: Vec<u8> = vec![0; 5000];
+            let mut serial_buf: Vec<u8> = Vec::with_capacity(5000);
+            let mut serial_char_buf: Vec<u8> = vec![0; 1];
             let poll_data: Arc<Mutex<Vec<PollData>>> = Arc::new(Mutex::new(vec![]));
             let running_procs: Arc<Mutex<Vec<ProcData>>> = Arc::new(Mutex::new(vec![]));
 
             debug!("Receiving data on serial connection.");
             loop {
-                match port.read(serial_buf.as_mut_slice()) {
-                    Ok(n) => {
-                        let res = process_cmds(&serial_buf[..n], &poll_data, &running_procs);
-                        let result = res.await;
-                        match result {
-                            Ok(s) => {
-                                port.write_all(format!("{}OK\0", &s).as_bytes())
-                                    .expect("Error writing to serial");
-                            }
-                            Err(e) => {
-                                port.write_all(format!("{}ERR\0", encode(&e)).as_bytes())
-                                    .expect("Error writing to serial");
-                            }
-                        }
-                        port.flush().expect("Couldn't flush serial on reading end");
+                loop {
+                    match port.bytes_to_read() {
+                        Ok(0) => continue,
+                        Ok(_) => {}
+                        Err(e) => match e.kind {
+                            serialport::ErrorKind::NoDevice => panic!("Serial device disconnected"),
+                            serialport::ErrorKind::Io(io_error_kind) => match io_error_kind {
+                                io::ErrorKind::TimedOut => continue,
+                                _ => panic!("IO error when reading buffer length: {}", e),
+                            },
+                            _ => panic!("Unexpected error: {}", e),
+                        },
                     }
-                    Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (), // Ignore timeouts
-                    Err(e) => eprintln!("{:?}", e),
+                    if let Err(e) = port.read_exact(&mut serial_char_buf) {
+                        match e.kind() {
+                            io::ErrorKind::TimedOut => continue,
+                            _ => panic!("IO error when reading buffer length: {}", e),
+                        }
+                    }
+
+                    match serial_char_buf[0] {
+                        0x00 => break,
+                        c => serial_buf.push(c),
+                    }
                 }
+
+                let res = process_cmds(&serial_buf, &poll_data, &running_procs);
+                match res.await {
+                    Ok(s) => {
+                        port.write_all(format!("{}OK\0", &s).as_bytes())
+                            .expect("Error writing to serial");
+                    }
+                    Err(e) => {
+                        port.write_all(format!("{}ERR\0", encode(&e)).as_bytes())
+                            .expect("Error writing to serial");
+                    }
+                }
+                serial_buf.clear();
+                port.flush().expect("Couldn't flush serial on reading end");
             }
         }
         // If the port could not be opened, print an error and exit
