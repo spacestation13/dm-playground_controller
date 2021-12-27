@@ -15,7 +15,7 @@ pub fn send_signal(pid: &&str, signal: &&str) -> Result<String, String> {
     ) {
         Ok(_) => Ok("".into()),
         Err(e) => Err(format!(
-            "Error sending signal {} to pid {}: {}\n",
+            "Error sending signal {} to pid {}: {}",
             sig, pid, e
         )),
     }

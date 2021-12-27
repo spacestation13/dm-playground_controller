@@ -77,7 +77,7 @@ async fn main() {
                             .expect("Error writing to serial");
                     }
                     Err(e) => {
-                        port.write_all(format!("{}ERR\0", encode(&e)).as_bytes())
+                        port.write_all(format!("{}\nERR\0", encode(&e)).as_bytes())
                             .expect("Error writing to serial");
                     }
                 }
@@ -116,7 +116,7 @@ async fn process_cmds(
         ["poll"] => poll::send_poll_data(poll_data),
         _ => {
             eprintln!("Unknown cmd: {}", cmd);
-            Err(format!("Unknown cmd: {}\n", cmd))
+            Err(format!("Unknown cmd: {}", cmd))
         }
     }
 }
