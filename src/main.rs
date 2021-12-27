@@ -4,9 +4,8 @@ mod poll;
 mod process;
 mod signal;
 
-use std::io::Read;
 use std::{
-    io,
+    io::{self, Read},
     sync::{Arc, Mutex},
     time::Duration,
 };
