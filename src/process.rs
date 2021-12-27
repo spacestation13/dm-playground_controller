@@ -8,7 +8,7 @@ use std::{
     thread,
     time::Duration,
 };
-use subprocess::Exec;
+use subprocess::{Exec, ExitStatus};
 
 #[derive(std::cmp::PartialEq)]
 enum EnvParserState {
@@ -122,10 +122,19 @@ pub async fn process(
             match proc.poll() {
                 // If the process has exited
                 Some(status) => {
+                    //0-255: Exit codes
+                    //256: Undetermined
+                    //257-inf: Signaled
+                    let exit_code = match status {
+                        ExitStatus::Exited(code) => code,
+                        ExitStatus::Undetermined => 256,
+                        ExitStatus::Signaled(signal) => 256 + (signal as u32),
+                        ExitStatus::Other(what) => panic!("Unknown ExitStatus: {}", what),
+                    };
                     //TODO: Handle cleanup push of comms data before pidexit push
                     poll_data.lock().unwrap().push(PollData {
                         typ: PollType::PidExit,
-                        data: format!("{} {:?}", pid, status),
+                        data: format!("{} {}", pid, exit_code),
                     });
                     break;
                 }
