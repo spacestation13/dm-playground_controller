@@ -56,22 +56,11 @@ async fn main() {
             debug!("Receiving data on serial connection.");
             loop {
                 loop {
-                    match port.bytes_to_read() {
-                        Ok(0) => continue,
-                        Ok(_) => {}
-                        Err(e) => match e.kind {
-                            serialport::ErrorKind::NoDevice => panic!("Serial device disconnected"),
-                            serialport::ErrorKind::Io(io_error_kind) => match io_error_kind {
-                                io::ErrorKind::TimedOut => continue,
-                                _ => panic!("IO error when reading buffer length: {}", e),
-                            },
-                            _ => panic!("Unexpected error: {}", e),
-                        },
-                    }
                     if let Err(e) = port.read_exact(&mut serial_char_buf) {
                         match e.kind() {
+                            io::ErrorKind::UnexpectedEof => continue,
                             io::ErrorKind::TimedOut => continue,
-                            _ => panic!("IO error when reading buffer length: {}", e),
+                            _ => panic!("IO error when reading character: {}", e),
                         }
                     }
 
