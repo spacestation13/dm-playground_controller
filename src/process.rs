@@ -27,35 +27,20 @@ pub async fn process(
     poll_data_main: &Arc<Mutex<Vec<PollData>>>,
 ) -> Result<String, String> {
     let process = match decode(b_process) {
-        Ok(dec_vec) => {
-            if dec_vec.is_empty() {
-                "".into()
-            } else {
-                String::from_utf8(dec_vec).expect("Invalid UTF8 for exec path")
-            }
-        }
+        Ok(dec_vec) if dec_vec.is_empty() => "".into(),
+        Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec path"),
         Err(e) => return Err(format!("Error decoding exec path: {}\n", e.to_string())),
     };
 
     let args = match decode(b_args) {
-        Ok(dec_vec) => {
-            if dec_vec.is_empty() {
-                "".into()
-            } else {
-                String::from_utf8(dec_vec).expect("Invalid UTF8 for exec args")
-            }
-        }
+        Ok(dec_vec) if dec_vec.is_empty() => "".into(),
+        Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec args"),
         Err(e) => return Err(format!("Error decoding exec args: {}\n", e.to_string())),
     };
 
     let raw_env_vars = match decode(b_env_vars) {
-        Ok(dec_vec) => {
-            if dec_vec.is_empty() {
-                "".into()
-            } else {
-                String::from_utf8(dec_vec).expect("Invalid UTF8 for exec env args")
-            }
-        }
+        Ok(dec_vec) if dec_vec.is_empty() => "".into(),
+        Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec env args"),
         Err(e) => return Err(format!("Error decoding exec env vars: {}\n", e.to_string())),
     };
 
