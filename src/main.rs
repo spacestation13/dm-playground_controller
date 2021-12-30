@@ -97,7 +97,7 @@ async fn process_cmds(
 ) -> Result<String, String> {
     // Tokenize and parse the command
     let cmd = String::from_utf8_lossy(serial_buf);
-    let cmd_tokens: Vec<&str> = cmd.split(" ").collect();
+    let cmd_tokens: Vec<&str> = cmd.split(' ').collect();
 
     match cmd_tokens.as_slice() {
         ["run", process_name, args, env_vars] => {
