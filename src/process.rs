@@ -2,13 +2,13 @@
 
 use crate::{PollData, PollType};
 
-use base64::decode;
+use base64::{decode, encode};
 use std::{
     sync::{Arc, Mutex},
     thread,
     time::Duration,
 };
-use subprocess::{Exec, ExitStatus};
+use subprocess::{Exec, ExitStatus, Redirection};
 
 #[derive(std::cmp::PartialEq)]
 enum EnvParserState {
@@ -19,7 +19,7 @@ enum EnvParserState {
 /// Takes in base64 process, args, and env vars data
 ///
 ///  Returns: Result
-pub async fn process(
+pub fn process(
     b_process: &&str,
     b_args: &&str,
     b_env_vars: &&str,
@@ -102,11 +102,13 @@ pub async fn process(
     let mut proc = Exec::cmd(process)
         .arg(args)
         .env_extend(&env_vars)
+        .stdout(Redirection::Pipe)
+        .stderr(Redirection::Pipe)
         .popen()
         .expect("Failed to start process");
 
     let pid = proc.pid().unwrap(); // Must exist for a newly opened process
-    tokio::spawn(async move {
+    thread::spawn(move || {
         let mut comms = proc.communicate_start(None);
 
         // Loop the process inside the thread
@@ -146,26 +148,31 @@ pub async fn process(
         }
     });
 
-    Ok(format!("{}\nOK\n", pid))
+    Ok(format!("{}\n", pid))
 }
 
 fn push_possible_output(
     (stdout, stderr): (Option<String>, Option<String>),
     poll_data: &Arc<Mutex<Vec<PollData>>>,
 ) {
+    println!("{:?}|{:?}", stdout, stderr);
     if stdout.is_some() || stderr.is_some() {
         let mut poll_lock = poll_data.lock().unwrap();
         if let Some(dat) = stdout {
-            poll_lock.push(PollData {
-                typ: PollType::Stdout,
-                data: dat,
-            });
+            if !dat.is_empty() {
+                poll_lock.push(PollData {
+                    typ: PollType::Stdout,
+                    data: encode(dat),
+                });
+            }
         }
         if let Some(dat) = stderr {
-            poll_lock.push(PollData {
-                typ: PollType::Stderr,
-                data: dat,
-            });
+            if !dat.is_empty() {
+                poll_lock.push(PollData {
+                    typ: PollType::Stderr,
+                    data: encode(dat),
+                });
+            }
         }
     }
 }

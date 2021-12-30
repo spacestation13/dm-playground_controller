@@ -28,8 +28,8 @@ pub struct PollData {
     data: String,
 }
 
-#[tokio::main]
-async fn main() {
+//#[tokio::main]
+fn main() {
     // Open serial connection on /dev/ttyS2, max baud rate
     let port = serialport::new("/dev/ttyS2", 115_200)
         .timeout(Duration::from_millis(10))
@@ -63,7 +63,7 @@ async fn main() {
                 }
 
                 let res = process_cmds(&serial_buf, &poll_data);
-                match res.await {
+                match res {
                     Ok(s) => {
                         port.write_all(format!("{}OK\0", &s).as_bytes())
                             .expect("Error writing to serial");
@@ -91,7 +91,7 @@ async fn main() {
 /// - `run process_name args env_vars` - Run the specified process with the given arguments and environment variables
 /// - `signal pid signal` - Send the given signal to the given pid
 /// - `poll` - Poll for data, sends it all back
-async fn process_cmds(
+fn process_cmds(
     serial_buf: &[u8],
     poll_data: &Arc<Mutex<Vec<PollData>>>,
 ) -> Result<String, String> {
@@ -101,7 +101,7 @@ async fn process_cmds(
 
     match cmd_tokens.as_slice() {
         ["run", process_name, args, env_vars] => {
-            process::process(process_name, args, env_vars, poll_data).await
+            process::process(process_name, args, env_vars, poll_data)
         }
         ["signal", pid, signal] => signal::send_signal(pid, signal),
         ["poll"] => poll::send_poll_data(poll_data),
