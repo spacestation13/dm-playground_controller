@@ -8,7 +8,7 @@ use std::{
     thread,
     time::Duration,
 };
-use subprocess::Exec;
+use subprocess::{Communicator, Exec};
 
 #[derive(std::cmp::PartialEq)]
 enum EnvParserState {
@@ -122,29 +122,22 @@ pub async fn process(
             match proc.poll() {
                 // If the process has exited
                 Some(status) => {
-                    //TODO: Handle cleanup push of comms data before pidexit push
+                    let comm_data = comms.read_string().expect("Proc comms error on exit");
+                    push_possible_output(comm_data, &poll_data);
+
+                    // Push the pid and exit status since we've exited
                     poll_data.lock().unwrap().push(PollData {
                         typ: PollType::PidExit,
                         data: format!("{} {:?}", pid, status),
                     });
+
                     break;
                 }
                 // If the process is still running
                 None => {
-                    let comm_data = comms.read_string().expect("Proc comms error:");
-                    let mut poll_lock = poll_data.lock().unwrap();
-                    if let Some(dat) = comm_data.0 {
-                        poll_lock.push(PollData {
-                            typ: PollType::Stdout,
-                            data: dat,
-                        });
-                    }
-                    if let Some(dat) = comm_data.1 {
-                        poll_lock.push(PollData {
-                            typ: PollType::Stderr,
-                            data: dat,
-                        });
-                    }
+                    let comm_data = comms.read_string().expect("Proc comms error");
+                    push_possible_output(comm_data, &poll_data);
+
                     // How long we sleep inside the thread to check if exited or more poll data
                     thread::sleep(Duration::new(0, 100_000));
                 }
@@ -153,4 +146,25 @@ pub async fn process(
     });
 
     Ok("OK\n".into())
+}
+
+fn push_possible_output(
+    (stdout, stderr): (Option<String>, Option<String>),
+    poll_data: &Arc<Mutex<Vec<PollData>>>,
+) {
+    if stdout.is_some() || stderr.is_some() {
+        let mut poll_lock = poll_data.lock().unwrap();
+        if let Some(dat) = stdout {
+            poll_lock.push(PollData {
+                typ: PollType::Stdout,
+                data: dat,
+            });
+        }
+        if let Some(dat) = stderr {
+            poll_lock.push(PollData {
+                typ: PollType::Stderr,
+                data: dat,
+            });
+        }
+    }
 }
