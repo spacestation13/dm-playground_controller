@@ -8,7 +8,7 @@ use std::{
     thread,
     time::Duration,
 };
-use subprocess::{Communicator, Exec};
+use subprocess::{Exec, ExitStatus};
 
 #[derive(std::cmp::PartialEq)]
 enum EnvParserState {
@@ -29,19 +29,19 @@ pub async fn process(
     let process = match decode(b_process) {
         Ok(dec_vec) if dec_vec.is_empty() => "".into(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec path"),
-        Err(e) => return Err(format!("Error decoding exec path: {}\n", e.to_string())),
+        Err(e) => return Err(format!("Error decoding exec path: {}", e.to_string())),
     };
 
     let args = match decode(b_args) {
         Ok(dec_vec) if dec_vec.is_empty() => "".into(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec args"),
-        Err(e) => return Err(format!("Error decoding exec args: {}\n", e.to_string())),
+        Err(e) => return Err(format!("Error decoding exec args: {}", e.to_string())),
     };
 
     let raw_env_vars = match decode(b_env_vars) {
         Ok(dec_vec) if dec_vec.is_empty() => "".into(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec env args"),
-        Err(e) => return Err(format!("Error decoding exec env vars: {}\n", e.to_string())),
+        Err(e) => return Err(format!("Error decoding exec env vars: {}", e.to_string())),
     };
 
     // Handle environment vars parsing into tuples
@@ -126,9 +126,18 @@ pub async fn process(
                     push_possible_output(comm_data, &poll_data);
 
                     // Push the pid and exit status since we've exited
+                    //0-255: Exit codes
+                    //256: Undetermined
+                    //257-inf: Signaled
+                    let exit_code = match status {
+                        ExitStatus::Exited(code) => code,
+                        ExitStatus::Undetermined => 256,
+                        ExitStatus::Signaled(signal) => 256 + (signal as u32),
+                        ExitStatus::Other(what) => panic!("Unknown ExitStatus: {}", what),
+                    };
                     poll_data.lock().unwrap().push(PollData {
                         typ: PollType::PidExit,
-                        data: format!("{} {:?}", pid, status),
+                        data: format!("{} {}", pid, exit_code),
                     });
 
                     break;
@@ -145,6 +154,7 @@ pub async fn process(
         }
     });
 
+    //TODO: Replace with pid
     Ok("OK\n".into())
 }
 

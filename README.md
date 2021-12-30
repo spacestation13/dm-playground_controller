@@ -108,7 +108,10 @@ pid: (INT) process ID of the created process
 
 pid: (NUM) Process ID of the subprocess that exit
 
-exitCode: (NUM) exit code of the subprocess that exit
+exitCode: (NUM) exit code of the subprocess that exit. 
+    0-255: Exited via exit(), exit code is exitCode
+    256: Exit code or signal could not be determined
+    257-inf: Exited by being kill()'d. Signal is (exitCode - 256)
 
 ###### Example
 

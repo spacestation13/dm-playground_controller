@@ -56,22 +56,11 @@ async fn main() {
             debug!("Receiving data on serial connection.");
             loop {
                 loop {
-                    match port.bytes_to_read() {
-                        Ok(0) => continue,
-                        Ok(_) => {}
-                        Err(e) => match e.kind {
-                            serialport::ErrorKind::NoDevice => panic!("Serial device disconnected"),
-                            serialport::ErrorKind::Io(io_error_kind) => match io_error_kind {
-                                io::ErrorKind::TimedOut => continue,
-                                _ => panic!("IO error when reading buffer length: {}", e),
-                            },
-                            _ => panic!("Unexpected error: {}", e),
-                        },
-                    }
                     if let Err(e) = port.read_exact(&mut serial_char_buf) {
                         match e.kind() {
+                            io::ErrorKind::UnexpectedEof => continue,
                             io::ErrorKind::TimedOut => continue,
-                            _ => panic!("IO error when reading buffer length: {}", e),
+                            _ => panic!("IO error when reading character: {}", e),
                         }
                     }
 
@@ -88,7 +77,7 @@ async fn main() {
                             .expect("Error writing to serial");
                     }
                     Err(e) => {
-                        port.write_all(format!("{}ERR\0", encode(&e)).as_bytes())
+                        port.write_all(format!("{}\nERR\0", encode(&e)).as_bytes())
                             .expect("Error writing to serial");
                     }
                 }
@@ -117,7 +106,7 @@ async fn process_cmds(
 ) -> Result<String, String> {
     // Tokenize and parse the command
     let cmd = String::from_utf8_lossy(serial_buf);
-    let cmd_tokens: Vec<&str> = cmd.split_whitespace().collect();
+    let cmd_tokens: Vec<&str> = cmd.split(" ").collect();
 
     match cmd_tokens.as_slice() {
         ["run", process_name, args, env_vars] => {
@@ -127,7 +116,7 @@ async fn process_cmds(
         ["poll"] => poll::send_poll_data(poll_data),
         _ => {
             eprintln!("Unknown cmd: {}", cmd);
-            Err(format!("Unknown cmd: {}\n", cmd))
+            Err(format!("Unknown cmd: {}", cmd))
         }
     }
 }
