@@ -28,19 +28,19 @@ pub async fn process(
     let process = match decode(b_process) {
         Ok(dec_vec) if dec_vec.is_empty() => "".into(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec path"),
-        Err(e) => return Err(format!("Error decoding exec path: {}", e.to_string())),
+        Err(e) => return Err(format!("Error decoding exec path: {}", e)),
     };
 
     let args = match decode(b_args) {
         Ok(dec_vec) if dec_vec.is_empty() => "".into(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec args"),
-        Err(e) => return Err(format!("Error decoding exec args: {}", e.to_string())),
+        Err(e) => return Err(format!("Error decoding exec args: {}", e)),
     };
 
     let raw_env_vars = match decode(b_env_vars) {
         Ok(dec_vec) if dec_vec.is_empty() => "".into(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec env args"),
-        Err(e) => return Err(format!("Error decoding exec env vars: {}", e.to_string())),
+        Err(e) => return Err(format!("Error decoding exec env vars: {}", e)),
     };
 
     // Handle environment vars parsing into tuples
@@ -98,8 +98,12 @@ pub async fn process(
     }
 
     let poll_data = poll_data_main.clone();
+    let pid_mutex: Arc<Mutex<u32>> = Arc::new(Mutex::new(0));
+    let pid_mutex_clone = pid_mutex.clone();
 
-    tokio::spawn(async move {
+    let _join_handle = tokio::spawn(async move {
+        let mut pid_lock = pid_mutex.lock().unwrap(); // Lock first thing
+
         let mut proc = Exec::cmd(process)
             .arg(args)
             .env_extend(&env_vars)
@@ -107,6 +111,9 @@ pub async fn process(
             .expect("Failed to start process");
 
         let pid = proc.pid().unwrap(); // Must exist for a newly opened process
+        *pid_lock = pid; // Sets the value inside the pid mutex
+        drop(pid_lock); // We no longer need it, drop the lock
+
         let mut comms = proc.communicate_start(None);
 
         // Loop the process inside the thread
@@ -146,8 +153,8 @@ pub async fn process(
         }
     });
 
-    //TODO: Replace with pid
-    Ok("OK\n".into())
+    thread::sleep(Duration::new(0, 100_000)); // To allow the thread time to spawn and lock
+    Ok(format!("{}\nOK\n", pid_mutex_clone.lock().unwrap()))
 }
 
 fn push_possible_output(
