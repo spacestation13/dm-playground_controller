@@ -38,7 +38,7 @@ async fn main() {
     match port {
         Ok(mut port) => {
             // Hello message
-            port.write_all("OK\0".as_bytes())
+            port.write_all("HELLO\0".as_bytes())
                 .expect("Error writing to serial");
 
             let mut serial_buf: Vec<u8> = Vec::with_capacity(5000);
