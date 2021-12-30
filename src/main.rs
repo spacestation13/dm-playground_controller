@@ -11,7 +11,6 @@ use std::{
 };
 
 use base64::encode;
-use subprocess::Popen;
 
 #[derive(strum_macros::Display)]
 pub enum PollType {
@@ -27,12 +26,6 @@ pub enum PollType {
 pub struct PollData {
     typ: PollType,
     data: String,
-}
-
-/// Holds information relating to a (possibly) open process
-pub struct ProcData {
-    pid: u32,
-    popen: Popen,
 }
 
 #[tokio::main]
@@ -51,7 +44,6 @@ async fn main() {
             let mut serial_buf: Vec<u8> = Vec::with_capacity(5000);
             let mut serial_char_buf: Vec<u8> = vec![0; 1];
             let poll_data: Arc<Mutex<Vec<PollData>>> = Arc::new(Mutex::new(vec![]));
-            let running_procs: Arc<Mutex<Vec<ProcData>>> = Arc::new(Mutex::new(vec![]));
 
             debug!("Receiving data on serial connection.");
             loop {
@@ -70,7 +62,7 @@ async fn main() {
                     }
                 }
 
-                let res = process_cmds(&serial_buf, &poll_data, &running_procs);
+                let res = process_cmds(&serial_buf, &poll_data);
                 match res.await {
                     Ok(s) => {
                         port.write_all(format!("{}OK\0", &s).as_bytes())
@@ -102,7 +94,6 @@ async fn main() {
 async fn process_cmds(
     serial_buf: &[u8],
     poll_data: &Arc<Mutex<Vec<PollData>>>,
-    running_procs: &Arc<Mutex<Vec<ProcData>>>,
 ) -> Result<String, String> {
     // Tokenize and parse the command
     let cmd = String::from_utf8_lossy(serial_buf);
@@ -110,7 +101,7 @@ async fn process_cmds(
 
     match cmd_tokens.as_slice() {
         ["run", process_name, args, env_vars] => {
-            process::process(running_procs, process_name, args, env_vars, poll_data).await
+            process::process(process_name, args, env_vars, poll_data).await
         }
         ["signal", pid, signal] => signal::send_signal(pid, signal),
         ["poll"] => poll::send_poll_data(poll_data),

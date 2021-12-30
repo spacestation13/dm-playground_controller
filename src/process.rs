@@ -1,6 +1,6 @@
 //! Handles subprocess calling and buffering of stdout and stdin
 
-use crate::{PollData, PollType, ProcData};
+use crate::{PollData, PollType};
 
 use base64::decode;
 use std::{
@@ -20,7 +20,6 @@ enum EnvParserState {
 ///
 ///  Returns: Result
 pub async fn process(
-    running_procs: &Arc<Mutex<Vec<ProcData>>>,
     b_process: &&str,
     b_args: &&str,
     b_env_vars: &&str,
@@ -108,13 +107,6 @@ pub async fn process(
             .expect("Failed to start process");
 
         let pid = proc.pid().unwrap(); // Must exist for a newly opened process
-
-        //TODO: To keep track of all running processes - do we actually need this?
-        // running_procs.borrow_mut().push(ProcData {
-        //     pid: proc.pid().unwrap(),
-        //     popen: proc,
-        // });
-
         let mut comms = proc.communicate_start(None);
 
         // Loop the process inside the thread
