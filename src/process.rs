@@ -155,7 +155,6 @@ fn push_possible_output(
     (stdout, stderr): (Option<String>, Option<String>),
     poll_data: &Arc<Mutex<Vec<PollData>>>,
 ) {
-    println!("{:?}|{:?}", stdout, stderr);
     if stdout.is_some() || stderr.is_some() {
         let mut poll_lock = poll_data.lock().unwrap();
         if let Some(dat) = stdout {

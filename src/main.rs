@@ -28,7 +28,6 @@ pub struct PollData {
     data: String,
 }
 
-//#[tokio::main]
 fn main() {
     // Open serial connection on /dev/ttyS2, max baud rate
     let port = serialport::new("/dev/ttyS2", 115_200)
