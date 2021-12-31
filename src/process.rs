@@ -155,23 +155,22 @@ fn push_possible_output(
     (stdout, stderr): (Option<String>, Option<String>),
     poll_data: &Arc<Mutex<Vec<PollData>>>,
 ) {
-    if stdout.is_some() || stderr.is_some() {
-        let mut poll_lock = poll_data.lock().unwrap();
-        if let Some(dat) = stdout {
-            if !dat.is_empty() {
-                poll_lock.push(PollData {
-                    typ: PollType::Stdout,
-                    data: encode(dat),
-                });
-            }
-        }
-        if let Some(dat) = stderr {
-            if !dat.is_empty() {
-                poll_lock.push(PollData {
-                    typ: PollType::Stderr,
-                    data: encode(dat),
-                });
-            }
-        }
+    let out_dat = stdout.expect("Stdout pipe is closed");
+    let err_dat = stderr.expect("Stderr pipe is closed");
+    //Avoid locking if there's no incoming data
+    if out_dat.is_empty() && err_dat.is_empty() { return }
+
+    let mut poll_lock = poll_data.lock().unwrap();
+    if !out_dat.is_empty() {
+        poll_lock.push(PollData {
+            typ: PollType::Stdout,
+            data: encode(out_dat),
+        });
+    }
+    if !err_dat.is_empty() {
+        poll_lock.push(PollData {
+            typ: PollType::Stderr,
+            data: encode(err_dat),
+        });
     }
 }
