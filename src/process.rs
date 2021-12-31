@@ -96,6 +96,9 @@ pub async fn process(
             _ => add_char(&char, &state, &mut tmpkey, &mut tmpval),
         }
     }
+    if state != EnvParserState::Key {
+        return Err("Env args are unterminated".to_string());
+    }
 
     let poll_data = poll_data_main.clone();
 
