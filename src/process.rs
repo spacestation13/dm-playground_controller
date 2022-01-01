@@ -160,8 +160,11 @@ fn push_possible_output(
 ) {
     let out_dat = stdout.expect("Stdout pipe is closed");
     let err_dat = stderr.expect("Stderr pipe is closed");
+
     //Avoid locking if there's no incoming data
-    if out_dat.is_empty() && err_dat.is_empty() { return }
+    if out_dat.is_empty() && err_dat.is_empty() {
+        return;
+    }
 
     let mut poll_lock = poll_data.lock().unwrap();
     if !out_dat.is_empty() {

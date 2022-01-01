@@ -4,13 +4,12 @@ mod poll;
 mod process;
 mod signal;
 
+use base64::encode;
 use std::{
     io::{self, Read},
     sync::{Arc, Mutex},
     time::Duration,
 };
-
-use base64::encode;
 
 #[derive(strum_macros::Display)]
 pub enum PollType {
