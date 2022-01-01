@@ -2,13 +2,13 @@
 
 use crate::{PollData, PollType};
 
-use base64::decode;
+use base64::{decode, encode};
 use std::{
     sync::{Arc, Mutex},
     thread,
     time::Duration,
 };
-use subprocess::{Exec, ExitStatus};
+use subprocess::{Exec, ExitStatus, Redirection};
 
 #[derive(std::cmp::PartialEq)]
 enum EnvParserState {
@@ -19,7 +19,7 @@ enum EnvParserState {
 /// Takes in base64 process, args, and env vars data
 ///
 ///  Returns: Result
-pub async fn process(
+pub fn process(
     b_process: &&str,
     b_args: &&str,
     b_env_vars: &&str,
@@ -28,19 +28,19 @@ pub async fn process(
     let process = match decode(b_process) {
         Ok(dec_vec) if dec_vec.is_empty() => "".into(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec path"),
-        Err(e) => return Err(format!("Error decoding exec path: {}", e.to_string())),
+        Err(e) => return Err(format!("Error decoding exec path: {}", e)),
     };
 
     let args = match decode(b_args) {
         Ok(dec_vec) if dec_vec.is_empty() => "".into(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec args"),
-        Err(e) => return Err(format!("Error decoding exec args: {}", e.to_string())),
+        Err(e) => return Err(format!("Error decoding exec args: {}", e)),
     };
 
     let raw_env_vars = match decode(b_env_vars) {
         Ok(dec_vec) if dec_vec.is_empty() => "".into(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec env args"),
-        Err(e) => return Err(format!("Error decoding exec env vars: {}", e.to_string())),
+        Err(e) => return Err(format!("Error decoding exec env vars: {}", e)),
     };
 
     // Handle environment vars parsing into tuples
@@ -99,14 +99,16 @@ pub async fn process(
 
     let poll_data = poll_data_main.clone();
 
-    tokio::spawn(async move {
-        let mut proc = Exec::cmd(process)
-            .arg(args)
-            .env_extend(&env_vars)
-            .popen()
-            .expect("Failed to start process");
+    let mut proc = Exec::cmd(process)
+        .arg(args)
+        .env_extend(&env_vars)
+        .stdout(Redirection::Pipe)
+        .stderr(Redirection::Pipe)
+        .popen()
+        .expect("Failed to start process");
 
-        let pid = proc.pid().unwrap(); // Must exist for a newly opened process
+    let pid = proc.pid().unwrap(); // Must exist for a newly opened process
+    thread::spawn(move || {
         let mut comms = proc.communicate_start(None);
 
         // Loop the process inside the thread
@@ -146,27 +148,29 @@ pub async fn process(
         }
     });
 
-    //TODO: Replace with pid
-    Ok("OK\n".into())
+    Ok(format!("{}\n", pid))
 }
 
 fn push_possible_output(
     (stdout, stderr): (Option<String>, Option<String>),
     poll_data: &Arc<Mutex<Vec<PollData>>>,
 ) {
-    if stdout.is_some() || stderr.is_some() {
-        let mut poll_lock = poll_data.lock().unwrap();
-        if let Some(dat) = stdout {
-            poll_lock.push(PollData {
-                typ: PollType::Stdout,
-                data: dat,
-            });
-        }
-        if let Some(dat) = stderr {
-            poll_lock.push(PollData {
-                typ: PollType::Stderr,
-                data: dat,
-            });
-        }
+    let out_dat = stdout.expect("Stdout pipe is closed");
+    let err_dat = stderr.expect("Stderr pipe is closed");
+    //Avoid locking if there's no incoming data
+    if out_dat.is_empty() && err_dat.is_empty() { return }
+
+    let mut poll_lock = poll_data.lock().unwrap();
+    if !out_dat.is_empty() {
+        poll_lock.push(PollData {
+            typ: PollType::Stdout,
+            data: encode(out_dat),
+        });
+    }
+    if !err_dat.is_empty() {
+        poll_lock.push(PollData {
+            typ: PollType::Stderr,
+            data: encode(err_dat),
+        });
     }
 }
