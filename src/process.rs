@@ -169,8 +169,8 @@ fn get_comm_data(mut comms: RefMut<Communicator>) -> (Option<String>, Option<Str
             let data = comm_error.capture;
             drop(comms);
             (
-                Some(String::from_utf8_lossy(&data.0.unwrap()).into_owned()),
-                Some(String::from_utf8_lossy(&data.1.unwrap()).into_owned()),
+                Some(String::from_utf8_lossy(&data.0.unwrap_or_default()).into_owned()),
+                Some(String::from_utf8_lossy(&data.1.unwrap_or_default()).into_owned()),
             )
         }
     }
