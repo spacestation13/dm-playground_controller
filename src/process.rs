@@ -161,16 +161,17 @@ pub fn process(
 fn get_comm_data(mut comms: RefMut<Communicator>) -> (Option<String>, Option<String>) {
     match comms.read_string() {
         Ok(data) => {
+            // Just drop comms and give eof'd data
             drop(comms);
             data
         }
         Err(comm_error) => {
-            // Ignore error and give partial (non-eof) data
+            // Ignore error and give partial (non-eof) data if it exists
             let data = comm_error.capture;
             drop(comms);
             (
-                Some(String::from_utf8_lossy(&data.0.unwrap_or_default()).into_owned()),
-                Some(String::from_utf8_lossy(&data.1.unwrap_or_default()).into_owned()),
+                data.0.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
+                data.1.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
             )
         }
     }
