@@ -4,11 +4,12 @@ use crate::{PollData, PollType};
 
 use base64::{decode, encode};
 use std::{
+    cell::{RefCell, RefMut},
     sync::{Arc, Mutex},
     thread,
     time::Duration,
 };
-use subprocess::{Exec, ExitStatus, Redirection};
+use subprocess::{Communicator, Exec, ExitStatus, Redirection};
 
 #[derive(std::cmp::PartialEq)]
 enum EnvParserState {
@@ -112,14 +113,17 @@ pub fn process(
 
     let pid = proc.pid().unwrap(); // Must exist for a newly opened process
     thread::spawn(move || {
-        let mut comms = proc.communicate_start(None);
+        let comms = RefCell::new(
+            proc.communicate_start(None)
+                .limit_time(Duration::new(0, 100_000)),
+        );
 
         // Loop the process inside the thread
         loop {
             match proc.poll() {
                 // If the process has exited
                 Some(status) => {
-                    let comm_data = comms.read_string().expect("Proc comms error on exit");
+                    let comm_data = get_comm_data(comms.borrow_mut());
                     push_possible_output(comm_data, &poll_data);
 
                     // Push the pid and exit status since we've exited
@@ -141,7 +145,7 @@ pub fn process(
                 }
                 // If the process is still running
                 None => {
-                    let comm_data = comms.read_string().expect("Proc comms error");
+                    let comm_data = get_comm_data(comms.borrow_mut());
                     push_possible_output(comm_data, &poll_data);
 
                     // How long we sleep inside the thread to check if exited or more poll data
@@ -152,6 +156,24 @@ pub fn process(
     });
 
     Ok(format!("{}\n", pid))
+}
+
+fn get_comm_data(mut comms: RefMut<Communicator>) -> (Option<String>, Option<String>) {
+    match comms.read_string() {
+        Ok(data) => {
+            drop(comms);
+            data
+        }
+        Err(comm_error) => {
+            // Ignore error and give partial (non-eof) data
+            let data = comm_error.capture;
+            drop(comms);
+            (
+                Some(String::from_utf8_lossy(&data.0.unwrap()).into_owned()),
+                Some(String::from_utf8_lossy(&data.1.unwrap()).into_owned()),
+            )
+        }
+    }
 }
 
 fn push_possible_output(
