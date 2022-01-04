@@ -60,8 +60,7 @@ fn main() {
                     }
                 }
 
-                let res = process_cmds(&serial_buf, &poll_data);
-                match res {
+                match process_cmds(&serial_buf, &poll_data) {
                     Ok(s) => {
                         port.write_all(format!("{}OK\0", &s).as_bytes())
                             .expect("Error writing to serial");
