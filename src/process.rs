@@ -171,11 +171,10 @@ pub fn process(
     Ok(format!("{}\n", pid))
 }
 
-fn get_comm_data(mut comms: RefMut<Communicator>) -> CommData {
-    match comms.read_string() {
+fn get_comm_data(mut comms_ref: RefMut<Communicator>) -> CommData {
+    match comms_ref.read_string() {
         Ok(data) => {
             // Just drop comms and give eof'd data
-            drop(comms);
             CommData {
                 stdout: data.0,
                 stderr: data.1,
@@ -184,7 +183,6 @@ fn get_comm_data(mut comms: RefMut<Communicator>) -> CommData {
         Err(comm_error) => {
             // Ignore error and give partial (non-eof) data if it exists
             let data = comm_error.capture;
-            drop(comms);
             CommData {
                 stdout: data.0.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
                 stderr: data.1.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
