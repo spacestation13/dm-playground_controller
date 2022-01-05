@@ -4,7 +4,6 @@ use crate::{PollData, PollType};
 
 use base64::{decode, encode};
 use std::{
-    cell::RefCell,
     sync::{Arc, Mutex},
     thread,
     time::Duration,
@@ -126,14 +125,12 @@ pub fn process(
 
     let pid = proc.pid().unwrap(); // Must exist for a newly opened process
     thread::spawn(move || {
-        let comms = RefCell::new(
-            proc.communicate_start(None)
-                .limit_time(Duration::from_micros(500)),
-        );
+        let mut comms = proc
+            .communicate_start(None)
+            .limit_time(Duration::from_micros(500));
 
         let comm_data = {
-            let mut comms_ref = comms.borrow_mut();
-            match comms_ref.read_string() {
+            match comms.read_string() {
                 Ok(data) => {
                     // Just drop comms and give eof'd data
                     CommData {
