@@ -4,12 +4,12 @@ use crate::{PollData, PollType};
 
 use base64::{decode, encode};
 use std::{
-    cell::{RefCell, RefMut},
+    cell::RefCell,
     sync::{Arc, Mutex},
     thread,
     time::Duration,
 };
-use subprocess::{Communicator, Exec, ExitStatus, Redirection};
+use subprocess::{Exec, ExitStatus, Redirection};
 
 #[derive(std::cmp::PartialEq)]
 enum EnvParserState {
@@ -128,67 +128,55 @@ pub fn process(
     thread::spawn(move || {
         let comms = RefCell::new(
             proc.communicate_start(None)
-                .limit_time(Duration::new(0, 100_000)),
+                .limit_time(Duration::from_micros(500)),
         );
+
+        let comm_data = {
+            let mut comms_ref = comms.borrow_mut();
+            match comms_ref.read_string() {
+                Ok(data) => {
+                    // Just drop comms and give eof'd data
+                    CommData {
+                        stdout: data.0,
+                        stderr: data.1,
+                    }
+                }
+                Err(comm_error) => {
+                    // Ignore 'error' and give partial (non-eof) data if it exists
+                    let data = comm_error.capture;
+                    CommData {
+                        stdout: data.0.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
+                        stderr: data.1.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
+                    }
+                }
+            }
+        };
+        push_possible_output(comm_data, &poll_data);
 
         // Loop the process inside the thread
         loop {
-            match proc.poll() {
-                // If the process has exited
-                Some(status) => {
-                    let comm_data = get_comm_data(comms.borrow_mut());
-                    push_possible_output(comm_data, &poll_data);
+            // Have we exited? We'll need to push the PID and exit data
+            if let Some(status) = proc.poll() {
+                //0-255: Exit codes
+                //256: Undetermined
+                //257-inf: Signaled
+                let exit_code = match status {
+                    ExitStatus::Exited(code) => code,
+                    ExitStatus::Undetermined => 256,
+                    ExitStatus::Signaled(signal) => 256 + (signal as u32),
+                    ExitStatus::Other(what) => panic!("Unknown ExitStatus: {}", what),
+                };
+                poll_data.lock().unwrap().push(PollData {
+                    typ: PollType::PidExit,
+                    data: format!("{} {}", pid, exit_code),
+                });
 
-                    // Push the pid and exit status since we've exited
-                    //0-255: Exit codes
-                    //256: Undetermined
-                    //257-inf: Signaled
-                    let exit_code = match status {
-                        ExitStatus::Exited(code) => code,
-                        ExitStatus::Undetermined => 256,
-                        ExitStatus::Signaled(signal) => 256 + (signal as u32),
-                        ExitStatus::Other(what) => panic!("Unknown ExitStatus: {}", what),
-                    };
-                    poll_data.lock().unwrap().push(PollData {
-                        typ: PollType::PidExit,
-                        data: format!("{} {}", pid, exit_code),
-                    });
-
-                    break;
-                }
-                // If the process is still running
-                None => {
-                    let comm_data = get_comm_data(comms.borrow_mut());
-                    push_possible_output(comm_data, &poll_data);
-
-                    // How long we sleep inside the thread to check if exited or more poll data
-                    thread::sleep(Duration::new(0, 100_000));
-                }
+                break;
             }
         }
     });
 
     Ok(format!("{}\n", pid))
-}
-
-fn get_comm_data(mut comms_ref: RefMut<Communicator>) -> CommData {
-    match comms_ref.read_string() {
-        Ok(data) => {
-            // Just drop comms and give eof'd data
-            CommData {
-                stdout: data.0,
-                stderr: data.1,
-            }
-        }
-        Err(comm_error) => {
-            // Ignore error and give partial (non-eof) data if it exists
-            let data = comm_error.capture;
-            CommData {
-                stdout: data.0.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
-                stderr: data.1.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
-            }
-        }
-    }
 }
 
 fn push_possible_output(data: CommData, poll_data: &Arc<Mutex<Vec<PollData>>>) {
