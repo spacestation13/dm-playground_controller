@@ -118,10 +118,8 @@ pub fn process(
 
         let comm_data = {
             match comms.read_string() {
-                Ok(data) => {
-                    // Just drop comms and give eof'd data
-                    (data.0, data.1)
-                }
+                // Just drop comms and give eof'd data
+                Ok(data) => (data.0, data.1)
                 Err(comm_error) => {
                     // Ignore 'error' and give partial (non-eof) data if it exists
                     let data = comm_error.capture;
