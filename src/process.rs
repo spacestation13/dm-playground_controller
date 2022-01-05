@@ -16,19 +16,6 @@ enum EnvParserState {
     Value,
 }
 
-/// Data returned from a Communicator
-struct CommData {
-    stdout: Option<String>,
-    stderr: Option<String>,
-}
-
-impl From<CommData> for (Option<String>, Option<String>) {
-    fn from(comm: CommData) -> (Option<String>, Option<String>) {
-        let CommData { stdout, stderr } = comm;
-        (stdout, stderr)
-    }
-}
-
 /// Takes in base64 process, args, and env vars data to run a process
 ///
 ///  Returns: The pid of the created process
@@ -133,18 +120,15 @@ pub fn process(
             match comms.read_string() {
                 Ok(data) => {
                     // Just drop comms and give eof'd data
-                    CommData {
-                        stdout: data.0,
-                        stderr: data.1,
-                    }
+                    (data.0, data.1)
                 }
                 Err(comm_error) => {
                     // Ignore 'error' and give partial (non-eof) data if it exists
                     let data = comm_error.capture;
-                    CommData {
-                        stdout: data.0.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
-                        stderr: data.1.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
-                    }
+                    (
+                        data.0.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
+                        data.1.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
+                    )
                 }
             }
         };
@@ -176,9 +160,12 @@ pub fn process(
     Ok(format!("{}\n", pid))
 }
 
-fn push_possible_output(data: CommData, poll_data: &Arc<Mutex<Vec<PollData>>>) {
-    let out_dat = data.stdout.unwrap_or_default();
-    let err_dat = data.stderr.unwrap_or_default();
+fn push_possible_output(
+    (stdout, stderr): (Option<String>, Option<String>),
+    poll_data: &Arc<Mutex<Vec<PollData>>>,
+) {
+    let out_dat = stdout.unwrap_or_default();
+    let err_dat = stderr.unwrap_or_default();
 
     //Avoid locking if there's no incoming data
     if out_dat.is_empty() && err_dat.is_empty() {
