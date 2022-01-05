@@ -16,9 +16,9 @@ enum EnvParserState {
     Value,
 }
 
-/// Takes in base64 process, args, and env vars data
+/// Takes in base64 process, args, and env vars data to run a process
 ///
-///  Returns: Result
+///  Returns: The pid of the created process
 pub fn process(
     b_process: &&str,
     b_args: &&str,
@@ -112,41 +112,47 @@ pub fn process(
 
     let pid = proc.pid().unwrap(); // Must exist for a newly opened process
     thread::spawn(move || {
-        let mut comms = proc.communicate_start(None);
+        let mut comms = proc
+            .communicate_start(None)
+            .limit_time(Duration::from_micros(500));
+
+        let comm_data = {
+            match comms.read_string() {
+                Ok(data) => {
+                    // Just drop comms and give eof'd data
+                    (data.0, data.1)
+                }
+                Err(comm_error) => {
+                    // Ignore 'error' and give partial (non-eof) data if it exists
+                    let data = comm_error.capture;
+                    (
+                        data.0.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
+                        data.1.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
+                    )
+                }
+            }
+        };
+        push_possible_output(comm_data, &poll_data);
 
         // Loop the process inside the thread
         loop {
-            match proc.poll() {
-                // If the process has exited
-                Some(status) => {
-                    let comm_data = comms.read_string().expect("Proc comms error on exit");
-                    push_possible_output(comm_data, &poll_data);
+            // Have we exited? We'll need to push the PID and exit data
+            if let Some(status) = proc.poll() {
+                //0-255: Exit codes
+                //256: Undetermined
+                //257-inf: Signaled
+                let exit_code = match status {
+                    ExitStatus::Exited(code) => code,
+                    ExitStatus::Undetermined => 256,
+                    ExitStatus::Signaled(signal) => 256 + (signal as u32),
+                    ExitStatus::Other(what) => panic!("Unknown ExitStatus: {}", what),
+                };
+                poll_data.lock().unwrap().push(PollData {
+                    typ: PollType::PidExit,
+                    data: format!("{} {}", pid, exit_code),
+                });
 
-                    // Push the pid and exit status since we've exited
-                    //0-255: Exit codes
-                    //256: Undetermined
-                    //257-inf: Signaled
-                    let exit_code = match status {
-                        ExitStatus::Exited(code) => code,
-                        ExitStatus::Undetermined => 256,
-                        ExitStatus::Signaled(signal) => 256 + (signal as u32),
-                        ExitStatus::Other(what) => panic!("Unknown ExitStatus: {}", what),
-                    };
-                    poll_data.lock().unwrap().push(PollData {
-                        typ: PollType::PidExit,
-                        data: format!("{} {}", pid, exit_code),
-                    });
-
-                    break;
-                }
-                // If the process is still running
-                None => {
-                    let comm_data = comms.read_string().expect("Proc comms error");
-                    push_possible_output(comm_data, &poll_data);
-
-                    // How long we sleep inside the thread to check if exited or more poll data
-                    thread::sleep(Duration::new(0, 100_000));
-                }
+                break;
             }
         }
     });
@@ -158,8 +164,8 @@ fn push_possible_output(
     (stdout, stderr): (Option<String>, Option<String>),
     poll_data: &Arc<Mutex<Vec<PollData>>>,
 ) {
-    let out_dat = stdout.expect("Stdout pipe is closed");
-    let err_dat = stderr.expect("Stderr pipe is closed");
+    let out_dat = stdout.unwrap_or_default();
+    let err_dat = stderr.unwrap_or_default();
 
     //Avoid locking if there's no incoming data
     if out_dat.is_empty() && err_dat.is_empty() {
