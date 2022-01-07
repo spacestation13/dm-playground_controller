@@ -149,7 +149,8 @@ pub fn process(
                 };
                 poll_data.lock().unwrap().push(PollData {
                     typ: PollType::PidExit,
-                    data: format!("{} {}", pid, exit_code),
+                    pid,
+                    data: exit_code.to_string(),
                 });
 
                 break;
@@ -177,13 +178,15 @@ fn push_possible_output(
     if !out_dat.is_empty() {
         poll_lock.push(PollData {
             typ: PollType::Stdout,
-            data: format!("{} {}", pid, encode(out_dat)),
+            pid,
+            data: encode(out_dat),
         });
     }
     if !err_dat.is_empty() {
         poll_lock.push(PollData {
             typ: PollType::Stderr,
-            data: format!("{} {}", pid, encode(err_dat)),
+            pid,
+            data: encode(err_dat),
         });
     }
 }

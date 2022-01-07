@@ -24,6 +24,7 @@ pub enum PollType {
 /// Holds polling data
 pub struct PollData {
     typ: PollType,
+    pid: u32,
     data: String,
 }
 
