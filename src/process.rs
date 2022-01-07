@@ -102,14 +102,15 @@ pub fn process(
 
     let poll_data = poll_data_main.clone();
 
-    let mut proc =  match Exec::cmd(process)
+    let mut proc = match Exec::cmd(process)
         .arg(args)
         .env_extend(&env_vars)
         .stdout(Redirection::Pipe)
         .stderr(Redirection::Pipe)
-        .popen() {
+        .popen()
+    {
         Err(e) => return Err(format!("Failed to create process: {}", e)),
-        Ok(proc) => proc
+        Ok(proc) => proc,
     };
 
     let pid = proc.pid().unwrap(); // Must exist for a newly opened process
