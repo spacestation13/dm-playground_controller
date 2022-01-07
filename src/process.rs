@@ -8,6 +8,7 @@ use std::{
     thread,
     time::Duration,
 };
+use std::io::ErrorKind;
 use subprocess::{Exec, ExitStatus, Redirection};
 
 #[derive(std::cmp::PartialEq)]
@@ -120,11 +121,9 @@ pub fn process(
         loop {
             let comm_data = {
                 match comms.read_string() {
-                    Ok(data) => {
-                        // Just drop comms and give eof'd data
-                        (data.0, data.1)
-                    }
-                    Err(comm_error) => {
+                    // Just drop comms and give eof'd data
+                    Ok(data) => (data.0, data.1),
+                    Err(comm_error) if comm_error.kind() == ErrorKind::TimedOut => {
                         // Ignore 'error' and give partial (non-eof) data if it exists
                         let data = comm_error.capture;
                         (
@@ -132,6 +131,7 @@ pub fn process(
                             data.1.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
                         )
                     }
+                    Err(e) => panic!("Error while reading comms: {}", e)
                 }
             };
             push_possible_output(comm_data, pid, &poll_data);
