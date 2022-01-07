@@ -3,12 +3,12 @@
 use crate::{PollData, PollType};
 
 use base64::{decode, encode};
+use std::io::ErrorKind;
 use std::{
     sync::{Arc, Mutex},
     thread,
     time::Duration,
 };
-use std::io::ErrorKind;
 use subprocess::{Exec, ExitStatus, Redirection};
 
 #[derive(std::cmp::PartialEq)]
@@ -131,7 +131,7 @@ pub fn process(
                             data.1.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
                         )
                     }
-                    Err(e) => panic!("Error while reading comms: {}", e)
+                    Err(e) => panic!("Error while reading comms: {}", e),
                 }
             };
             push_possible_output(comm_data, pid, &poll_data);
