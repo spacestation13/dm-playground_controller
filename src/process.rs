@@ -132,7 +132,7 @@ pub fn process(
                 }
             }
         };
-        push_possible_output(comm_data, &poll_data);
+        push_possible_output(comm_data, pid, &poll_data);
 
         // Loop the process inside the thread
         loop {
@@ -162,6 +162,7 @@ pub fn process(
 
 fn push_possible_output(
     (stdout, stderr): (Option<String>, Option<String>),
+    pid: u32,
     poll_data: &Arc<Mutex<Vec<PollData>>>,
 ) {
     let out_dat = stdout.unwrap_or_default();
@@ -176,13 +177,13 @@ fn push_possible_output(
     if !out_dat.is_empty() {
         poll_lock.push(PollData {
             typ: PollType::Stdout,
-            data: encode(out_dat),
+            data: format!("{} {}", pid, encode(out_dat)),
         });
     }
     if !err_dat.is_empty() {
         poll_lock.push(PollData {
             typ: PollType::Stderr,
-            data: encode(err_dat),
+            data: format!("{} {}", pid, encode(err_dat)),
         });
     }
 }
