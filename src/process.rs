@@ -116,26 +116,26 @@ pub fn process(
             .communicate_start(None)
             .limit_time(Duration::from_micros(500));
 
-        let comm_data = {
-            match comms.read_string() {
-                Ok(data) => {
-                    // Just drop comms and give eof'd data
-                    (data.0, data.1)
-                }
-                Err(comm_error) => {
-                    // Ignore 'error' and give partial (non-eof) data if it exists
-                    let data = comm_error.capture;
-                    (
-                        data.0.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
-                        data.1.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
-                    )
-                }
-            }
-        };
-        push_possible_output(comm_data, pid, &poll_data);
-
         // Loop the process inside the thread
         loop {
+            let comm_data = {
+                match comms.read_string() {
+                    Ok(data) => {
+                        // Just drop comms and give eof'd data
+                        (data.0, data.1)
+                    }
+                    Err(comm_error) => {
+                        // Ignore 'error' and give partial (non-eof) data if it exists
+                        let data = comm_error.capture;
+                        (
+                            data.0.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
+                            data.1.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
+                        )
+                    }
+                }
+            };
+            push_possible_output(comm_data, pid, &poll_data);
+
             // Have we exited? We'll need to push the PID and exit data
             if let Some(status) = proc.poll() {
                 //0-255: Exit codes
