@@ -78,7 +78,7 @@ signal: (INT) signal to send
 
 path: (B64_STR) Path of the executable
 
-args: (B64_STR) Arguments to run the executable with
+args: (B64_STR) Arguments to run the executable with. Arguments are seperated with \0
 
 env: (B64_STR) Environment variables to pass to the executable in the following format: `VAR1=VAL1;VAR2=VAL2;`. Take care to escape `\;`, `\=` and `\\` properly.
 
