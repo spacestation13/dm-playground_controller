@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+
 #[macro_use]
 mod helpers;
 mod poll;
@@ -49,15 +52,17 @@ fn main() {
                 loop {
                     if let Err(e) = port.read_exact(&mut serial_char_buf) {
                         match e.kind() {
-                            io::ErrorKind::UnexpectedEof => continue,
-                            io::ErrorKind::TimedOut => continue,
+                            io::ErrorKind::TimedOut | io::ErrorKind::UnexpectedEof => continue,
                             _ => panic!("IO error when reading character: {}", e),
                         }
                     }
 
-                    match serial_char_buf[0] {
-                        0x00 => break,
-                        c => serial_buf.push(c),
+                    match serial_char_buf.first() {
+                        Some(i) => match i {
+                            0x00 => break,
+                            c => serial_buf.push(*c),
+                        },
+                        None => panic!("IO error when trying to read serial buffer"),
                     }
                 }
 
@@ -101,8 +106,8 @@ fn process_cmds(
         ["run", process_name, args, env_vars] => {
             process::process(process_name, args, env_vars, poll_data)
         }
-        ["signal", pid, signal] => signal::send_signal(pid, signal),
-        ["poll"] => poll::send_poll_data(poll_data),
+        ["signal", pid, signal] => signal::send(pid, signal),
+        ["poll"] => Ok(poll::send_poll_data(poll_data)),
         _ => {
             eprintln!("Unknown cmd: {}", cmd);
             Err(format!("Unknown cmd: {}", cmd))

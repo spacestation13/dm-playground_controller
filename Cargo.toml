@@ -1,15 +1,18 @@
 [package]
 name = "dm-playground_controller"
-version = "1.0.1"
-edition = "2018"
+description = "The rust serial-driven controller for the dm-playground project"
+version = "1.1.0"
+edition = "2021"
+repository = "https://github.com/spacestation13/dm-playground_controller"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 base64 = "0.13"
-nix = "0.23"
+nix = "0.25"
 serialport = { version = "4.0", default-features = false }
 subprocess = "0.2"
-strum = "0.23"
-strum_macros = "0.23"
-phf = { version = "0.10", features = ["macros"] }
+strum = "0.24"
+strum_macros = "0.24"
+phf = { version = "0.11", features = ["macros"] }

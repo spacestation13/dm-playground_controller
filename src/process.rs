@@ -27,19 +27,19 @@ pub fn process(
     poll_data_main: &Arc<Mutex<Vec<PollData>>>,
 ) -> Result<String, String> {
     let process = match decode(b_process) {
-        Ok(dec_vec) if dec_vec.is_empty() => "".into(),
+        Ok(dec_vec) if dec_vec.is_empty() => String::new(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec path"),
         Err(e) => return Err(format!("Error decoding exec path: {}", e)),
     };
 
     let args = match decode(b_args) {
-        Ok(dec_vec) if dec_vec.is_empty() => "".into(),
+        Ok(dec_vec) if dec_vec.is_empty() => String::new(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec args"),
         Err(e) => return Err(format!("Error decoding exec args: {}", e)),
     };
 
     let raw_env_vars = match decode(b_env_vars) {
-        Ok(dec_vec) if dec_vec.is_empty() => "".into(),
+        Ok(dec_vec) if dec_vec.is_empty() => String::new(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec env args"),
         Err(e) => return Err(format!("Error decoding exec env vars: {}", e)),
     };
@@ -52,27 +52,18 @@ pub fn process(
     let mut state: EnvParserState = EnvParserState::Key;
     let mut skip = false;
 
-    /// Depending on state, adds the given char to the proper tuple portion
-    fn add_char(char: &char, state: &EnvParserState, tmpkey: &mut String, tmpval: &mut String) {
-        if *state == EnvParserState::Key {
-            tmpkey.push(*char);
-        } else {
-            tmpval.push(*char);
-        }
-    }
-
     // Process environmental vars
     for char in raw_env_vars.chars() {
         // This is triggered if we escape
         if skip {
-            add_char(&char, &state, &mut tmpkey, &mut tmpval);
+            add_char(char, &state, &mut tmpkey, &mut tmpval);
             continue;
         }
 
         match char {
             '\\' => {
                 // escape
-                skip = true
+                skip = true;
             }
             '=' => {
                 // switch state
@@ -94,7 +85,7 @@ pub fn process(
                 tmpval = String::with_capacity(30);
             }
             // otherwise add to the block in our current state
-            _ => add_char(&char, &state, &mut tmpkey, &mut tmpval),
+            _ => add_char(char, &state, &mut tmpkey, &mut tmpval),
         }
     }
     if state != EnvParserState::Key {
@@ -147,7 +138,7 @@ pub fn process(
                 let exit_code = match status {
                     ExitStatus::Exited(code) => code,
                     ExitStatus::Undetermined => 256,
-                    ExitStatus::Signaled(signal) => 256 + (signal as u32),
+                    ExitStatus::Signaled(signal) => 256 + u32::from(signal),
                     ExitStatus::Other(what) => panic!("Unknown ExitStatus: {}", what),
                 };
                 poll_data.lock().unwrap().push(PollData {
@@ -191,5 +182,14 @@ fn push_possible_output(
             pid,
             data: encode(err_dat),
         });
+    }
+}
+
+/// Depending on `EnvParserState`, adds `char` to the proper tuple portion
+fn add_char(char: char, state: &EnvParserState, tmpkey: &mut String, tmpval: &mut String) {
+    if *state == EnvParserState::Key {
+        tmpkey.push(char);
+    } else {
+        tmpval.push(char);
     }
 }

@@ -5,7 +5,7 @@ use phf::phf_map;
 
 /// Send the specified signal to the process with the specified pid.
 /// Returns Ok if the signal was sent, or an Err if the signal could not be sent.
-pub fn send_signal(pid: &&str, signal: &&str) -> Result<String, String> {
+pub fn send(pid: &&str, signal: &&str) -> Result<String, String> {
     let signal_str = SIGNALS.get(signal).expect("Malformed signal number");
     let sig = signal::Signal::from_str(signal_str).expect("Malformed signal name");
 
@@ -13,7 +13,7 @@ pub fn send_signal(pid: &&str, signal: &&str) -> Result<String, String> {
         nix::unistd::Pid::from_raw(pid.parse::<i32>().expect("Malformed pid")),
         sig,
     ) {
-        Ok(_) => Ok("".into()),
+        Ok(_) => Ok(String::new()),
         Err(e) => Err(format!(
             "Error sending signal {} to pid {}: {}",
             sig, pid, e
