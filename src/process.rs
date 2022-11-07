@@ -37,7 +37,7 @@ pub fn process(
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec args"),
         Err(e) => return Err(format!("Error decoding exec args: {}", e)),
     };
-    let args = raw_args.split("\0").collect::<Vec<&str>>();
+    let args = raw_args.split('\0').collect::<Vec<&str>>();
 
     let raw_env_vars = match decode(b_env_vars) {
         Ok(dec_vec) if dec_vec.is_empty() => String::new(),
