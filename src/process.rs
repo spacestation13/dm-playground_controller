@@ -32,11 +32,12 @@ pub fn process(
         Err(e) => return Err(format!("Error decoding exec path: {}", e)),
     };
 
-    let args = match decode(b_args) {
+    let raw_args = match decode(b_args) {
         Ok(dec_vec) if dec_vec.is_empty() => String::new(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec args"),
         Err(e) => return Err(format!("Error decoding exec args: {}", e)),
     };
+    let args = raw_args.split('\0').collect::<Vec<&str>>();
 
     let raw_env_vars = match decode(b_env_vars) {
         Ok(dec_vec) if dec_vec.is_empty() => String::new(),
@@ -95,7 +96,7 @@ pub fn process(
     let poll_data = poll_data_main.clone();
 
     let mut proc = match Exec::cmd(process)
-        .arg(args)
+        .args(args.as_slice())
         .env_extend(&env_vars)
         .stdout(Redirection::Pipe)
         .stderr(Redirection::Pipe)
