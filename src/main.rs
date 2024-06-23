@@ -53,7 +53,7 @@ fn main() {
                     if let Err(e) = port.read_exact(&mut serial_char_buf) {
                         match e.kind() {
                             io::ErrorKind::TimedOut | io::ErrorKind::UnexpectedEof => continue,
-                            _ => panic!("IO error when reading character: {}", e),
+                            _ => panic!("IO error when reading character: {e}"),
                         }
                     }
 
@@ -82,7 +82,7 @@ fn main() {
         }
         // If the port could not be opened, print an error and exit
         Err(e) => {
-            eprintln!("Failed to open serial connection. Error: {}", e);
+            eprintln!("Failed to open serial connection. Error: {e}");
             std::process::exit(1);
         }
     }
@@ -109,8 +109,8 @@ fn process_cmds(
         ["signal", pid, signal] => signal::send(pid, signal),
         ["poll"] => Ok(poll::send_poll_data(poll_data)),
         _ => {
-            eprintln!("Unknown cmd: {}", cmd);
-            Err(format!("Unknown cmd: {}", cmd))
+            eprintln!("Unknown cmd: {cmd}");
+            Err(format!("Unknown cmd: {cmd}"))
         }
     }
 }

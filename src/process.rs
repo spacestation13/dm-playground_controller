@@ -29,20 +29,20 @@ pub fn process(
     let process = match decode(b_process) {
         Ok(dec_vec) if dec_vec.is_empty() => String::new(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec path"),
-        Err(e) => return Err(format!("Error decoding exec path: {}", e)),
+        Err(e) => return Err(format!("Error decoding exec path: {e}")),
     };
 
     let raw_args = match decode(b_args) {
         Ok(dec_vec) if dec_vec.is_empty() => String::new(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec args"),
-        Err(e) => return Err(format!("Error decoding exec args: {}", e)),
+        Err(e) => return Err(format!("Error decoding exec args: {e}")),
     };
     let args = raw_args.split('\0').collect::<Vec<&str>>();
 
     let raw_env_vars = match decode(b_env_vars) {
         Ok(dec_vec) if dec_vec.is_empty() => String::new(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec env args"),
-        Err(e) => return Err(format!("Error decoding exec env vars: {}", e)),
+        Err(e) => return Err(format!("Error decoding exec env vars: {e}")),
     };
 
     // Handle environment vars parsing into tuples
@@ -102,7 +102,7 @@ pub fn process(
         .stderr(Redirection::Pipe)
         .popen()
     {
-        Err(e) => return Err(format!("Failed to create process: {}", e)),
+        Err(e) => return Err(format!("Failed to create process: {e}")),
         Ok(proc) => proc,
     };
 
@@ -126,7 +126,7 @@ pub fn process(
                             data.1.map(|dat| String::from_utf8_lossy(&dat).into_owned()),
                         )
                     }
-                    Err(e) => panic!("Error while reading comms: {}", e),
+                    Err(e) => panic!("Error while reading comms: {e}"),
                 }
             };
             push_possible_output(comm_data, pid, &poll_data);
@@ -140,7 +140,7 @@ pub fn process(
                     ExitStatus::Exited(code) => code,
                     ExitStatus::Undetermined => 256,
                     ExitStatus::Signaled(signal) => 256 + u32::from(signal),
-                    ExitStatus::Other(what) => panic!("Unknown ExitStatus: {}", what),
+                    ExitStatus::Other(what) => panic!("Unknown ExitStatus: {what}"),
                 };
                 poll_data.lock().unwrap().push(PollData {
                     typ: PollType::PidExit,
@@ -153,7 +153,7 @@ pub fn process(
         }
     });
 
-    Ok(format!("{}\n", pid))
+    Ok(format!("{pid}\n"))
 }
 
 fn push_possible_output(
