@@ -9,6 +9,7 @@ mod signal;
 
 use base64::encode;
 use std::{
+    env,
     io::{self, Read},
     sync::{Arc, Mutex},
     time::Duration,
@@ -32,8 +33,12 @@ pub struct PollData {
 }
 
 fn main() {
-    // Open serial connection on /dev/ttyS2, max baud rate
-    let port = serialport::new("/dev/ttyS2", 115_200)
+    let port_name = env::args()
+        .nth(1)
+        .expect("Port name argument (1) is required");
+
+    // Open serial connection on /dev/hvc2, max baud rate
+    let port = serialport::new(port_name, 115_200)
         .timeout(Duration::from_millis(10))
         .open();
 
