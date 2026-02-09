@@ -7,7 +7,7 @@ mod poll;
 mod process;
 mod signal;
 
-use base64::{Engine, engine::general_purpose::STANDARD_NO_PAD as BASE64};
+use base64::{engine::general_purpose::STANDARD_NO_PAD as BASE64, Engine};
 use std::{
     env,
     io::{self, Read},

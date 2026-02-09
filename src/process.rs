@@ -2,7 +2,7 @@
 
 use crate::{PollData, PollType};
 
-use base64::{Engine, engine::general_purpose::STANDARD_NO_PAD as BASE64};
+use base64::{engine::general_purpose::STANDARD_NO_PAD as BASE64, Engine};
 use std::io::ErrorKind;
 use std::{
     sync::{Arc, Mutex},
