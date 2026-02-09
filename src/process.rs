@@ -2,7 +2,7 @@
 
 use crate::{PollData, PollType};
 
-use base64::{decode, encode};
+use base64::{Engine, engine::general_purpose::STANDARD_NO_PAD as BASE64};
 use std::io::ErrorKind;
 use std::{
     sync::{Arc, Mutex},
@@ -26,20 +26,20 @@ pub fn process(
     b_env_vars: &&str,
     poll_data_main: &Arc<Mutex<Vec<PollData>>>,
 ) -> Result<String, String> {
-    let process = match decode(b_process) {
+    let process = match BASE64.decode(b_process) {
         Ok(dec_vec) if dec_vec.is_empty() => String::new(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec path"),
         Err(e) => return Err(format!("Error decoding exec path: {e}")),
     };
 
-    let raw_args = match decode(b_args) {
+    let raw_args = match BASE64.decode(b_args) {
         Ok(dec_vec) if dec_vec.is_empty() => String::new(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec args"),
         Err(e) => return Err(format!("Error decoding exec args: {e}")),
     };
     let args = raw_args.split('\0').collect::<Vec<&str>>();
 
-    let raw_env_vars = match decode(b_env_vars) {
+    let raw_env_vars = match BASE64.decode(b_env_vars) {
         Ok(dec_vec) if dec_vec.is_empty() => String::new(),
         Ok(dec_vec) => String::from_utf8(dec_vec).expect("Invalid UTF8 for exec env args"),
         Err(e) => return Err(format!("Error decoding exec env vars: {e}")),
@@ -174,14 +174,14 @@ fn push_possible_output(
         poll_lock.push(PollData {
             typ: PollType::Stdout,
             pid,
-            data: encode(out_dat),
+            data: BASE64.encode(&out_dat),
         });
     }
     if !err_dat.is_empty() {
         poll_lock.push(PollData {
             typ: PollType::Stderr,
             pid,
-            data: encode(err_dat),
+            data: BASE64.encode(&err_dat),
         });
     }
 }

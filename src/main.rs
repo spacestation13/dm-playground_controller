@@ -7,7 +7,7 @@ mod poll;
 mod process;
 mod signal;
 
-use base64::encode;
+use base64::{Engine, engine::general_purpose::STANDARD_NO_PAD as BASE64};
 use std::{
     env,
     io::{self, Read},
@@ -77,7 +77,7 @@ fn main() {
                             .expect("Error writing to serial");
                     }
                     Err(e) => {
-                        port.write_all(format!("{}\nERR\0", encode(&e)).as_bytes())
+                        port.write_all(format!("{}\nERR\0", BASE64.encode(e.as_bytes())).as_bytes())
                             .expect("Error writing to serial");
                     }
                 }
