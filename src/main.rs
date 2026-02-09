@@ -49,25 +49,27 @@ fn main() {
                 .expect("Error writing to serial");
 
             let mut serial_buf: Vec<u8> = Vec::with_capacity(5000);
-            let mut serial_char_buf: Vec<u8> = vec![0; 1];
+            let mut read_buf = [0u8; 256];
             let poll_data: Arc<Mutex<Vec<PollData>>> = Arc::new(Mutex::new(vec![]));
 
             debug!("Receiving data on serial connection.");
             loop {
+                // read data from serial port in chunks until null terminator
                 loop {
-                    if let Err(e) = port.read_exact(&mut serial_char_buf) {
-                        match e.kind() {
-                            io::ErrorKind::TimedOut | io::ErrorKind::UnexpectedEof => continue,
-                            _ => panic!("IO error when reading character: {e}"),
+                    match port.read(&mut read_buf) {
+                        Ok(n) => {
+                            let data = &read_buf[..n];
+                            // if the chunk contains a null byte take up to it and break, otherwise - accumulate
+                            if let Some(pos) = data.iter().position(|&b| b == 0x00) {
+                                serial_buf.extend_from_slice(&data[..pos]);
+                                break;
+                            }
+                            serial_buf.extend_from_slice(data);
                         }
-                    }
-
-                    match serial_char_buf.first() {
-                        Some(i) => match i {
-                            0x00 => break,
-                            c => serial_buf.push(*c),
-                        },
-                        None => panic!("IO error when trying to read serial buffer"),
+                        Err(e)
+                            if e.kind() == io::ErrorKind::TimedOut
+                                || e.kind() == io::ErrorKind::UnexpectedEof => {}
+                        Err(e) => panic!("IO error when reading buffer: {e}"),
                     }
                 }
 
@@ -77,8 +79,10 @@ fn main() {
                             .expect("Error writing to serial");
                     }
                     Err(e) => {
-                        port.write_all(format!("{}\nERR\0", BASE64.encode(e.as_bytes())).as_bytes())
-                            .expect("Error writing to serial");
+                        port.write_all(
+                            format!("{}\nERR\0", BASE64.encode(e.as_bytes())).as_bytes(),
+                        )
+                        .expect("Error writing to serial");
                     }
                 }
                 serial_buf.clear();

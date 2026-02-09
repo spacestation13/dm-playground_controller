@@ -5,7 +5,9 @@ use phf::phf_map;
 /// Returns Ok if the signal was sent, or an Err if the signal could not be sent.
 pub fn send(pid: &&str, signal: &&str) -> Result<String, String> {
     let signal_str = SIGNALS.get(signal).expect("Malformed signal number");
-    let sig = signal_str.parse::<signal::Signal>().expect("Malformed signal name");
+    let sig = signal_str
+        .parse::<signal::Signal>()
+        .expect("Malformed signal name");
 
     match signal::kill(
         nix::unistd::Pid::from_raw(pid.parse::<i32>().expect("Malformed pid")),
