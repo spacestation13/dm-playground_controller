@@ -1,11 +1,11 @@
 [package]
 name = "dm-playground_controller"
 description = "The rust serial-driven controller for the dm-playground project"
-version = "2.1.1"
-edition = "2024"
+version = "2.1.2"
+edition = "2021"
 repository = "https://github.com/spacestation13/dm-playground_controller"
 license = "MIT"
-
+rust-version = "1.74"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
