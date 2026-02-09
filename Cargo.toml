@@ -16,3 +16,8 @@ subprocess = "0.2"
 strum = "0.27"
 strum_macros = "0.27"
 phf = { version = "0.13", features = ["macros"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
