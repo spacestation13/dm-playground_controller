@@ -110,7 +110,7 @@ pub fn process(
     thread::spawn(move || {
         let mut comms = proc
             .communicate_start(None)
-            .limit_time(Duration::from_micros(1500));
+            .limit_time(Duration::from_millis(10));
 
         // Loop the process inside the thread
         loop {
