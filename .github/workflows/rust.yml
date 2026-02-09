@@ -15,7 +15,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+    - name: Get MSRV
+      run: echo "MSRV=$(grep 'rust-version' Cargo.toml | sed 's/.*"\(.*\)"/\1/')" >> $GITHUB_ENV
+    - name: Setup Rust toolchain (MSRV)
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: ${{ env.MSRV }}
+    - name: Check with MSRV
+      run: cargo check
+    - name: Setup Rust toolchain (latest)
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        components: clippy, rustfmt
     - name: Build & Clippy
       run: cargo clippy
     - name: Check Format
